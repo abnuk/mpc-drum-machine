@@ -85,6 +85,27 @@ void SampleEngine::clearSample (int midiNote)
     slot.loaded = false;
 }
 
+void SampleEngine::swapSamples (int noteA, int noteB)
+{
+    if (noteA < 0 || noteA >= kTotalSlots || noteB < 0 || noteB >= kTotalSlots || noteA == noteB)
+        return;
+
+    std::lock_guard<std::mutex> lock (loadMutex);
+
+    auto& slotA = slots[(size_t) noteA];
+    auto& slotB = slots[(size_t) noteB];
+
+    for (auto& v : slotA.voices)
+        v.active.store (false);
+    for (auto& v : slotB.voices)
+        v.active.store (false);
+
+    std::swap (slotA.buffer, slotB.buffer);
+    std::swap (slotA.sampleName, slotB.sampleName);
+    std::swap (slotA.sampleFile, slotB.sampleFile);
+    std::swap (slotA.loaded, slotB.loaded);
+}
+
 bool SampleEngine::hasSample (int midiNote) const
 {
     if (midiNote < 0 || midiNote >= kTotalSlots)

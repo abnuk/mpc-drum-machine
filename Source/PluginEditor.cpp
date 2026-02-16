@@ -258,6 +258,17 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         pad->onSampleDropped = [this] (int /*note*/, const juce::File& /*file*/)
         {
             refreshPads();
+            processorRef.saveCurrentMappingOverlay();
+        };
+        pad->onPadSwapped = [this] (int sourceNote, int targetNote)
+        {
+            processorRef.swapPadsAndSave (sourceNote, targetNote);
+            refreshPads();
+        };
+        pad->onResetMapping = [this]
+        {
+            processorRef.resetCurrentMappingToDefault();
+            refreshPads();
         };
         addAndMakeVisible (pad);
         padComponents.add (pad);

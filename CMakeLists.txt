@@ -27,6 +27,7 @@ target_sources(MPSDrumMachine
         Source/AdgParser.cpp
         Source/PresetManager.cpp
         Source/PadComponent.cpp
+        Source/PadMappingManager.cpp
         Source/PresetListComponent.cpp
         Source/LookAndFeel.cpp)
 

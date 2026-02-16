@@ -15,6 +15,7 @@ public:
 
     void loadSample (int midiNote, const juce::File& file);
     void clearSample (int midiNote);
+    void swapSamples (int noteA, int noteB);
     bool hasSample (int midiNote) const;
     juce::String getSampleName (int midiNote) const;
     juce::File getSampleFile (int midiNote) const;

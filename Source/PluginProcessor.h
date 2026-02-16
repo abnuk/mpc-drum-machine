@@ -4,6 +4,7 @@
 #include "SampleEngine.h"
 #include "AdgParser.h"
 #include "PresetManager.h"
+#include "PadMappingManager.h"
 
 class MPSDrumMachineProcessor : public juce::AudioProcessor
 {
@@ -48,11 +49,17 @@ public:
 
     void loadKitSamples (const AdgDrumKit& kit);
 
+    // Pad mapping overlay (drag & drop rearrangements)
+    void swapPadsAndSave (int noteA, int noteB);
+    void saveCurrentMappingOverlay();
+    void resetCurrentMappingToDefault();
+
 private:
     MidiMapper midiMapper;
     SampleEngine sampleEngine;
     AdgParser adgParser;
     PresetManager presetManager;
+    PadMappingManager padMappingManager;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MPSDrumMachineProcessor)
 };

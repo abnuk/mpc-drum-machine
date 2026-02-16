@@ -32,7 +32,8 @@ private:
     juce::TextButton savePresetButton { "Save Preset..." };
 };
 
-class MPSDrumMachineEditor : public juce::AudioProcessorEditor
+class MPSDrumMachineEditor : public juce::AudioProcessorEditor,
+                             public juce::DragAndDropContainer
 {
 public:
     MPSDrumMachineEditor (MPSDrumMachineProcessor&);

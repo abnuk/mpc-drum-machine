@@ -219,6 +219,65 @@ void MPSDrumMachineProcessor::loadKitSamples (const AdgDrumKit& kit)
 
     sampleEngine.clearAllSamples();
 
+    // Check if a custom mapping overlay exists for this preset
+    auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
+    auto customMapping = padMappingManager.loadMapping (presetId);
+
+    if (customMapping.has_value())
+    {
+        for (auto& [note, file] : customMapping.value())
+        {
+            if (file.existsAsFile())
+                sampleEngine.loadSample (note, file);
+        }
+    }
+    else
+    {
+        for (auto& mapping : kit.mappings)
+        {
+            juce::File sampleFile (mapping.samplePath);
+            if (sampleFile.existsAsFile())
+                sampleEngine.loadSample (mapping.midiNote, sampleFile);
+        }
+    }
+}
+
+void MPSDrumMachineProcessor::swapPadsAndSave (int noteA, int noteB)
+{
+    sampleEngine.swapSamples (noteA, noteB);
+    saveCurrentMappingOverlay();
+}
+
+void MPSDrumMachineProcessor::saveCurrentMappingOverlay()
+{
+    auto& kit = presetManager.getCurrentKit();
+    if (kit.sourceFile == juce::File())
+        return;
+
+    auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
+
+    PadMappingManager::PadMapping mapping;
+    for (auto& pad : MidiMapper::getAllPads())
+    {
+        auto file = sampleEngine.getSampleFile (pad.midiNote);
+        if (file.existsAsFile())
+            mapping[pad.midiNote] = file;
+    }
+
+    padMappingManager.saveMapping (presetId, mapping);
+}
+
+void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
+{
+    auto& kit = presetManager.getCurrentKit();
+    if (kit.sourceFile == juce::File())
+        return;
+
+    auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
+    padMappingManager.clearMapping (presetId);
+
+    // Reload the original kit samples
+    sampleEngine.clearAllSamples();
     for (auto& mapping : kit.mappings)
     {
         juce::File sampleFile (mapping.samplePath);
