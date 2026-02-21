@@ -25,6 +25,7 @@ target_sources(MPSDrumMachine
         Source/MidiMapper.cpp
         Source/SampleEngine.cpp
         Source/AdgParser.cpp
+        Source/DrumKitLibrary.cpp
         Source/PresetManager.cpp
         Source/PadComponent.cpp
         Source/PadMappingManager.cpp

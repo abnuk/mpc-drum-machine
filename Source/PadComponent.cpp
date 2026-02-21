@@ -86,6 +86,8 @@ void PadComponent::paint (juce::Graphics& g)
     g.drawText ("MIDI " + juce::String (padInfo.midiNote),
                 textArea.removeFromTop (13.0f), juce::Justification::centredLeft);
 
+    textArea.removeFromTop (4.0f);
+
     if (sampleName.isNotEmpty())
     {
         if (sampleMissing)

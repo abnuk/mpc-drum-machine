@@ -89,10 +89,11 @@ void MPSDrumMachineProcessor::getStateInformation (juce::MemoryBlock& destData)
     state->setAttribute ("prevCC", midiMapper.getPrevCCNumber());
     state->setAttribute ("nextCC", midiMapper.getNextCCNumber());
 
+    state->setAttribute ("drumKit", midiMapper.getActiveKitId());
     state->setAttribute ("presetIndex", presetManager.getCurrentPresetIndex());
 
     auto* padsEl = state->createNewChildElement ("PadMappings");
-    for (auto& pad : MidiMapper::getAllPads())
+    for (auto& pad : midiMapper.getAllPads())
     {
         auto file = sampleEngine.getSampleFile (pad.midiNote);
         if (file.existsAsFile())
@@ -123,6 +124,12 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
     auto presetsPath = state->getStringAttribute ("presetsPath");
     if (presetsPath.isNotEmpty())
         presetManager.setPresetsDir (juce::File (presetsPath));
+
+    auto drumKitId = state->getStringAttribute ("drumKit");
+    if (drumKitId.isNotEmpty())
+        midiMapper.setActiveKit (drumKitId);
+    else
+        midiMapper.setActiveKit ("millenium_mps_1000");
 
     midiMapper.setNavChannel (state->getIntAttribute ("navChannel", 0));
     midiMapper.setPrevCCNumber (state->getIntAttribute ("prevCC",
@@ -217,7 +224,7 @@ void MPSDrumMachineProcessor::saveCurrentMappingOverlay()
 
     PadMappingManager::PadMapping mapping;
     PadMappingManager::VolumeMap volumes;
-    for (auto& pad : MidiMapper::getAllPads())
+    for (auto& pad : midiMapper.getAllPads())
     {
         auto file = sampleEngine.getSampleFile (pad.midiNote);
         if (file.existsAsFile())
@@ -250,8 +257,21 @@ void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
             sampleEngine.markSampleMissing (pad.midiNote, pad.sampleName);
     }
 
-    for (auto& pad : MidiMapper::getAllPads())
+    for (auto& pad : midiMapper.getAllPads())
         sampleEngine.setPadVolume (pad.midiNote, 1.0f);
+}
+
+void MPSDrumMachineProcessor::setActiveKit (const juce::String& kitId)
+{
+    midiMapper.setActiveKit (kitId);
+
+    if (onKitChanged)
+        onKitChanged();
+}
+
+juce::String MPSDrumMachineProcessor::getActiveKitId() const
+{
+    return midiMapper.getActiveKitId();
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

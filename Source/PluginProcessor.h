@@ -57,6 +57,10 @@ public:
     juce::File getSamplesPath() const { return presetManager.getSamplesDir(); }
     juce::File getPresetsPath() const { return presetManager.getPresetsDir(); }
 
+    void setActiveKit (const juce::String& kitId);
+    juce::String getActiveKitId() const;
+    std::function<void()> onKitChanged;
+
 private:
     MidiMapper midiMapper;
     SampleEngine sampleEngine;

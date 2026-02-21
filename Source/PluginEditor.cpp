@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "AbletonImporter.h"
+#include "DrumKitLibrary.h"
 
 //==============================================================================
 // SettingsOverlay
@@ -11,6 +12,28 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
     titleLabel.setFont (juce::FontOptions (20.0f, juce::Font::bold));
     titleLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textBright);
     addAndMakeVisible (titleLabel);
+
+    // Drum kit selector
+    kitLabel.setText ("Electronic Drum Kit:", juce::dontSendNotification);
+    kitLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
+    addAndMakeVisible (kitLabel);
+
+    populateKitBox();
+    kitBox.onChange = [this]
+    {
+        int idx = kitBox.getSelectedId() - 1;
+        if (idx >= 0 && idx < (int) kitIds.size())
+        {
+            processor.setActiveKit (kitIds[(size_t) idx]);
+            updateKitInfoLabel();
+        }
+    };
+    addAndMakeVisible (kitBox);
+
+    kitInfoLabel.setFont (juce::FontOptions (12.0f));
+    kitInfoLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
+    addAndMakeVisible (kitInfoLabel);
+    updateKitInfoLabel();
 
     // Samples path
     samplesPathLabel.setText ("Samples Directory:", juce::dontSendNotification);
@@ -198,7 +221,7 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
                 {
                     auto name = alertWin->getTextEditorContents ("name");
                     std::map<int, juce::File> mappings;
-                    for (auto& pad : MidiMapper::getAllPads())
+                    for (auto& pad : processor.getMidiMapper().getAllPads())
                     {
                         auto file = processor.getSampleEngine().getSampleFile (pad.midiNote);
                         if (file.existsAsFile())
@@ -212,8 +235,45 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
     };
     addAndMakeVisible (savePresetButton);
 
+    closeButton.setColour (juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    closeButton.setColour (juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
+    closeButton.setColour (juce::TextButton::textColourOffId, DarkLookAndFeel::textDim);
+    closeButton.setColour (juce::TextButton::textColourOnId, DarkLookAndFeel::textBright);
     closeButton.onClick = [this] { if (onClose) onClose(); };
     addAndMakeVisible (closeButton);
+}
+
+void SettingsOverlay::populateKitBox()
+{
+    kitBox.clear();
+    kitIds.clear();
+
+    int itemId = 1;
+    auto manufacturers = DrumKitLibrary::getManufacturers();
+    auto currentKitId = processor.getActiveKitId();
+
+    for (auto& mfr : manufacturers)
+    {
+        kitBox.addSectionHeading (mfr);
+        auto kits = DrumKitLibrary::getKitsByManufacturer (mfr);
+        for (auto* kit : kits)
+        {
+            kitIds.push_back (kit->id);
+            kitBox.addItem (kit->name, itemId);
+            if (kit->id == currentKitId)
+                kitBox.setSelectedId (itemId, juce::dontSendNotification);
+            ++itemId;
+        }
+    }
+}
+
+void SettingsOverlay::updateKitInfoLabel()
+{
+    auto kitId = processor.getActiveKitId();
+    auto* kit = DrumKitLibrary::findKit (kitId);
+    if (kit != nullptr)
+        kitInfoLabel.setText (juce::String ((int) kit->pads.size()) + " pads  |  "
+                             + kit->manufacturer, juce::dontSendNotification);
 }
 
 SettingsOverlay::~SettingsOverlay()
@@ -378,8 +438,20 @@ void SettingsOverlay::resized()
 {
     auto area = getLocalBounds().reduced (50);
 
-    titleLabel.setBounds (area.removeFromTop (35));
+    auto titleRow = area.removeFromTop (35);
+    titleLabel.setBounds (titleRow);
+    closeButton.setBounds (titleRow.removeFromRight (32));
     area.removeFromTop (15);
+
+    // Drum kit selector
+    kitLabel.setBounds (area.removeFromTop (22));
+    {
+        auto row = area.removeFromTop (28);
+        kitBox.setBounds (row.removeFromLeft (320));
+        row.removeFromLeft (10);
+        kitInfoLabel.setBounds (row);
+    }
+    area.removeFromTop (12);
 
     // Samples path
     samplesPathLabel.setBounds (area.removeFromTop (22));
@@ -440,8 +512,6 @@ void SettingsOverlay::resized()
 
     area.removeFromTop (20);
     savePresetButton.setBounds (area.removeFromTop (32).withWidth (160));
-
-    closeButton.setBounds (area.removeFromBottom (32).withWidth (100));
 }
 
 //==============================================================================
@@ -561,7 +631,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
                     if (name.isNotEmpty())
                     {
                         std::map<int, juce::File> mappings;
-                        for (auto& pad : MidiMapper::getAllPads())
+                        for (auto& pad : processorRef.getMidiMapper().getAllPads())
                         {
                             auto file = processorRef.getSampleEngine().getSampleFile (pad.midiNote);
                             if (file.existsAsFile())
@@ -578,36 +648,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
     };
     addAndMakeVisible (presetListComponent.get());
 
-    for (auto& padInfo : MidiMapper::getAllPads())
-    {
-        auto* pad = new PadComponent (padInfo, processorRef.getSampleEngine());
-        pad->onSampleDropped = [this] (int /*note*/, const juce::File& /*file*/)
-        {
-            refreshPads();
-            processorRef.saveCurrentMappingOverlay();
-        };
-        pad->onPadSwapped = [this] (int sourceNote, int targetNote)
-        {
-            processorRef.swapPadsAndSave (sourceNote, targetNote);
-            refreshPads();
-        };
-        pad->onResetMapping = [this]
-        {
-            processorRef.resetCurrentMappingToDefault();
-            refreshPads();
-        };
-        pad->onLocateSample = [this] (const juce::File& file)
-        {
-            showSampleInBrowser (file);
-        };
-        pad->onVolumeChanged = [this] (int midiNote, float volume)
-        {
-            processorRef.getSampleEngine().setPadVolume (midiNote, volume);
-            processorRef.saveCurrentMappingOverlay();
-        };
-        addAndMakeVisible (pad);
-        padComponents.add (pad);
-    }
+    rebuildPadGrid();
 
     processorRef.onMidiTrigger = [this] (int midiNote, float velocity)
     {
@@ -636,6 +677,19 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         });
     };
 
+    processorRef.onKitChanged = [this]
+    {
+        juce::MessageManager::callAsync ([safeThis = juce::Component::SafePointer<MPSDrumMachineEditor> (this)]
+        {
+            if (safeThis != nullptr)
+            {
+                safeThis->rebuildPadGrid();
+                safeThis->refreshPads();
+                safeThis->resized();
+            }
+        });
+    };
+
     setSize (820, 660);
     setResizable (true, true);
     setResizeLimits (600, 500, 1600, 1200);
@@ -644,6 +698,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
 MPSDrumMachineEditor::~MPSDrumMachineEditor()
 {
     processorRef.onMidiTrigger = nullptr;
+    processorRef.onKitChanged = nullptr;
     setLookAndFeel (nullptr);
 }
 
@@ -686,12 +741,15 @@ void MPSDrumMachineEditor::resized()
     }
     else
     {
-        int cols = 4;
-        int rows = 6;
+        auto* activeKit = processorRef.getMidiMapper().getActiveKit();
+        int cols = (activeKit != nullptr) ? activeKit->columns : 4;
+        int numPads = padComponents.size();
+        int rows = (numPads + cols - 1) / cols;
+        if (rows < 1) rows = 1;
         int padWidth = area.getWidth() / cols;
         int padHeight = area.getHeight() / rows;
 
-        for (int i = 0; i < padComponents.size(); ++i)
+        for (int i = 0; i < numPads; ++i)
         {
             int row = i / cols;
             int col = i % cols;
@@ -706,6 +764,43 @@ void MPSDrumMachineEditor::refreshPads()
 {
     for (auto* pad : padComponents)
         pad->updateSampleDisplay();
+}
+
+void MPSDrumMachineEditor::rebuildPadGrid()
+{
+    padComponents.clear (true);
+
+    for (auto& padInfo : processorRef.getMidiMapper().getAllPads())
+    {
+        auto* pad = new PadComponent (padInfo, processorRef.getSampleEngine());
+        pad->onSampleDropped = [this] (int, const juce::File&)
+        {
+            refreshPads();
+            processorRef.saveCurrentMappingOverlay();
+        };
+        pad->onPadSwapped = [this] (int sourceNote, int targetNote)
+        {
+            processorRef.swapPadsAndSave (sourceNote, targetNote);
+            refreshPads();
+        };
+        pad->onResetMapping = [this]
+        {
+            processorRef.resetCurrentMappingToDefault();
+            refreshPads();
+        };
+        pad->onLocateSample = [this] (const juce::File& file)
+        {
+            showSampleInBrowser (file);
+        };
+        pad->onVolumeChanged = [this] (int midiNote, float volume)
+        {
+            processorRef.getSampleEngine().setPadVolume (midiNote, volume);
+            processorRef.saveCurrentMappingOverlay();
+        };
+        pad->setVisible (! showingPresetList);
+        addAndMakeVisible (pad);
+        padComponents.add (pad);
+    }
 }
 
 void MPSDrumMachineEditor::updatePresetLabel()

@@ -21,6 +21,10 @@ private:
     MPSDrumMachineProcessor& processor;
     juce::Label titleLabel;
 
+    juce::Label kitLabel;
+    juce::ComboBox kitBox;
+    juce::Label kitInfoLabel;
+
     juce::Label samplesPathLabel;
     juce::TextEditor samplesPathEditor;
     juce::TextButton samplesBrowseButton { "Browse..." };
@@ -47,8 +51,11 @@ private:
     juce::TextButton nextLearnButton { "Learn" };
 
     juce::TextButton savePresetButton { "Save Preset..." };
-    juce::TextButton closeButton { "Close" };
+    juce::TextButton closeButton { juce::CharPointer_UTF8 ("\xc3\x97") };
 
+    std::vector<juce::String> kitIds;
+    void populateKitBox();
+    void updateKitInfoLabel();
     void updateLearnButtonStates();
     void doAbletonImport();
 };
@@ -64,6 +71,7 @@ public:
     void resized() override;
 
     void refreshPads();
+    void rebuildPadGrid();
     void updatePresetLabel();
 
     bool shouldDropFilesWhenDraggedExternally (

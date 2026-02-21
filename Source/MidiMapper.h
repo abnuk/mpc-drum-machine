@@ -1,10 +1,10 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_events/juce_events.h>
-#include <array>
 #include <atomic>
 #include <functional>
 #include <string>
+#include <vector>
 
 struct PadInfo
 {
@@ -12,6 +12,8 @@ struct PadInfo
     std::string padName;
     std::string triggerName;
 };
+
+struct DrumKitDefinition;
 
 class MidiMapper
 {
@@ -21,10 +23,14 @@ public:
     bool isPadNote (int midiNote) const;
     const PadInfo* getPadInfo (int midiNote) const;
 
-    static const std::array<PadInfo, 24>& getAllPads();
+    const std::vector<PadInfo>& getAllPads() const;
+    const DrumKitDefinition* getActiveKit() const { return activeKit; }
+
+    void setActiveKit (const juce::String& kitId);
+    juce::String getActiveKitId() const;
 
     // Navigation MIDI config
-    void setNavChannel (int channel);   // 1-16, 0 = any
+    void setNavChannel (int channel);
     void setPrevCCNumber (int cc);
     void setNextCCNumber (int cc);
     int getNavChannel() const { return navChannel; }
@@ -44,18 +50,16 @@ public:
     bool isLearning() const;
     LearnTarget getLearnTarget() const;
 
-    // Called from audio thread; returns true if the message was consumed by learn
     bool processForLearn (const juce::MidiMessage& msg);
 
-    // Fired on the message thread when learn completes: (target, ccNumber)
     std::function<void (LearnTarget, int)> onLearnComplete;
 
 private:
-    int navChannel = 0;     // 0 = any channel
-    int prevCCNumber = 1;   // CC#1 for previous preset
-    int nextCCNumber = 2;   // CC#2 for next preset
+    const DrumKitDefinition* activeKit = nullptr;
 
-    std::atomic<int> learnTarget { 0 }; // 0=None, 1=Prev, 2=Next
+    int navChannel = 0;
+    int prevCCNumber = 1;
+    int nextCCNumber = 2;
 
-    static const std::array<PadInfo, 24> pads;
+    std::atomic<int> learnTarget { 0 };
 };
