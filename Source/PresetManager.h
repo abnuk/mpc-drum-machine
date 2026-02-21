@@ -46,6 +46,10 @@ public:
     bool savePreset (const juce::String& name,
                      const std::map<int, juce::File>& padMappings);
 
+    bool deletePreset (int index);
+    bool renamePreset (int index, const juce::String& newName);
+    juce::File getPresetFile (int index) const;
+
     std::function<void (const DkitPreset&)> onPresetLoaded;
 
     static juce::File getDefaultSamplesDir();

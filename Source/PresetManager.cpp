@@ -200,6 +200,83 @@ bool PresetManager::savePreset (const juce::String& name,
     return writeDkitJson (file, preset);
 }
 
+juce::File PresetManager::getPresetFile (int index) const
+{
+    if (index >= 0 && index < (int) presets.size())
+        return presets[(size_t) index].file;
+    return {};
+}
+
+bool PresetManager::deletePreset (int index)
+{
+    if (index < 0 || index >= (int) presets.size())
+        return false;
+
+    auto& entry = presets[(size_t) index];
+
+    if (! entry.file.deleteFile())
+        return false;
+
+    presets.erase (presets.begin() + index);
+
+    if (presets.empty())
+    {
+        currentIndex = -1;
+        currentKit = {};
+    }
+    else if (index == currentIndex)
+    {
+        int newIdx = juce::jmin (index, (int) presets.size() - 1);
+        loadPreset (newIdx);
+    }
+    else if (index < currentIndex)
+    {
+        --currentIndex;
+    }
+
+    return true;
+}
+
+bool PresetManager::renamePreset (int index, const juce::String& newName)
+{
+    if (index < 0 || index >= (int) presets.size())
+        return false;
+
+    if (newName.trim().isEmpty())
+        return false;
+
+    auto& entry = presets[(size_t) index];
+    auto newFile = entry.file.getParentDirectory().getChildFile (newName + ".dkit");
+
+    if (newFile.existsAsFile() && newFile != entry.file)
+        return false;
+
+    auto preset = parseDkitJson (entry.file);
+    if (preset.name.isEmpty())
+        return false;
+
+    preset.name = newName;
+    if (! writeDkitJson (entry.file, preset))
+        return false;
+
+    if (newFile != entry.file)
+    {
+        if (! entry.file.moveFileTo (newFile))
+            return false;
+    }
+
+    entry.name = newName;
+    entry.file = newFile;
+
+    if (index == currentIndex)
+    {
+        currentKit.name = newName;
+        currentKit.sourceFile = newFile;
+    }
+
+    return true;
+}
+
 juce::File PresetManager::resolveSamplePath (const juce::String& relativePath) const
 {
     if (relativePath.isEmpty())

@@ -18,12 +18,18 @@ public:
     int getFirstIndexForLetter (const juce::String& letter) const;
 
     std::function<void(int)> onPresetClicked;
+    std::function<void(int)> onDeleteRequested;
+    std::function<void(int, const juce::String&)> onRenameRequested;
 
     static constexpr int rowHeight = 40;
 
 private:
     juce::StringArray presetNames;
     int activeIndex = -1;
+
+    void showContextMenu (int rowIndex);
+    void showRenameDialog (int rowIndex);
+    void showDeleteConfirmation (int rowIndex);
 };
 
 class AlphabetBarComponent : public juce::Component
@@ -52,6 +58,9 @@ public:
     void setActivePreset (int index);
 
     std::function<void(int)> onPresetSelected;
+    std::function<void(int)> onPresetDeleted;
+    std::function<void(int, const juce::String&)> onPresetRenamed;
+    std::function<void()> onSaveNewPreset;
 
 private:
     PresetManager& presetManager;
@@ -62,6 +71,7 @@ private:
 
     juce::TextButton upButton { "UP" };
     juce::TextButton downButton { "DOWN" };
+    juce::TextButton addButton { "+" };
 
     void scrollPageUp();
     void scrollPageDown();

@@ -42,6 +42,7 @@ public:
     SampleEngine& getSampleEngine() { return sampleEngine; }
     AdgParser& getAdgParser() { return adgParser; }
     PresetManager& getPresetManager() { return presetManager; }
+    PadMappingManager& getPadMappingManager() { return padMappingManager; }
 
     std::function<void (int midiNote, float velocity)> onMidiTrigger;
 

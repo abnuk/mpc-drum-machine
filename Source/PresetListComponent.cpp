@@ -42,11 +42,85 @@ void PresetListContent::paint (juce::Graphics& g)
 void PresetListContent::mouseDown (const juce::MouseEvent& e)
 {
     int clickedRow = e.getPosition().getY() / rowHeight;
-    if (clickedRow >= 0 && clickedRow < presetNames.size())
+    if (clickedRow < 0 || clickedRow >= presetNames.size())
+        return;
+
+    if (e.mods.isPopupMenu())
     {
-        if (onPresetClicked)
-            onPresetClicked (clickedRow);
+        showContextMenu (clickedRow);
+        return;
     }
+
+    if (onPresetClicked)
+        onPresetClicked (clickedRow);
+}
+
+void PresetListContent::showContextMenu (int rowIndex)
+{
+    juce::PopupMenu menu;
+    menu.addItem (1, "Rename...");
+    menu.addItem (2, "Delete");
+
+    menu.showMenuAsync (juce::PopupMenu::Options(),
+        [this, rowIndex] (int result)
+        {
+            if (result == 1)
+                showRenameDialog (rowIndex);
+            else if (result == 2)
+                showDeleteConfirmation (rowIndex);
+        });
+}
+
+void PresetListContent::showRenameDialog (int rowIndex)
+{
+    if (rowIndex < 0 || rowIndex >= presetNames.size())
+        return;
+
+    auto currentName = presetNames[rowIndex];
+
+    auto* alertWin = new juce::AlertWindow ("Rename Preset",
+                                             "Enter a new name:",
+                                             juce::MessageBoxIconType::QuestionIcon);
+    alertWin->addTextEditor ("name", currentName);
+    alertWin->addButton ("Rename", 1);
+    alertWin->addButton ("Cancel", 0);
+
+    alertWin->enterModalState (true, juce::ModalCallbackFunction::create (
+        [this, alertWin, rowIndex] (int result)
+        {
+            if (result == 1)
+            {
+                auto newName = alertWin->getTextEditorContents ("name").trim();
+                if (newName.isNotEmpty() && onRenameRequested)
+                    onRenameRequested (rowIndex, newName);
+            }
+            delete alertWin;
+        }), true);
+}
+
+void PresetListContent::showDeleteConfirmation (int rowIndex)
+{
+    if (rowIndex < 0 || rowIndex >= presetNames.size())
+        return;
+
+    auto name = presetNames[rowIndex];
+
+    auto* alertWin = new juce::AlertWindow ("Delete Preset",
+                                             "Are you sure you want to delete \"" + name + "\"?",
+                                             juce::MessageBoxIconType::WarningIcon);
+    alertWin->addButton ("Delete", 1);
+    alertWin->addButton ("Cancel", 0);
+
+    alertWin->enterModalState (true, juce::ModalCallbackFunction::create (
+        [this, alertWin, rowIndex] (int result)
+        {
+            if (result == 1)
+            {
+                if (onDeleteRequested)
+                    onDeleteRequested (rowIndex);
+            }
+            delete alertWin;
+        }), true);
 }
 
 void PresetListContent::setPresetNames (const juce::StringArray& names)
@@ -148,11 +222,30 @@ PresetListComponent::PresetListComponent (PresetManager& pm) : presetManager (pm
             onPresetSelected (index);
     };
 
+    listContent.onDeleteRequested = [this] (int index)
+    {
+        if (onPresetDeleted)
+            onPresetDeleted (index);
+    };
+
+    listContent.onRenameRequested = [this] (int index, const juce::String& newName)
+    {
+        if (onPresetRenamed)
+            onPresetRenamed (index, newName);
+    };
+
     upButton.onClick = [this] { scrollPageUp(); };
     addAndMakeVisible (upButton);
 
     downButton.onClick = [this] { scrollPageDown(); };
     addAndMakeVisible (downButton);
+
+    addButton.onClick = [this]
+    {
+        if (onSaveNewPreset)
+            onSaveNewPreset();
+    };
+    addAndMakeVisible (addButton);
 }
 
 void PresetListComponent::paint (juce::Graphics& g)
@@ -166,6 +259,7 @@ void PresetListComponent::resized()
 
     constexpr int buttonWidth = 70;
     auto rightStrip = area.removeFromRight (buttonWidth);
+    addButton.setBounds (rightStrip.removeFromBottom (50).reduced (2));
     upButton.setBounds (rightStrip.removeFromTop (rightStrip.getHeight() / 2).reduced (2));
     downButton.setBounds (rightStrip.reduced (2));
 

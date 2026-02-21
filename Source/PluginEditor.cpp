@@ -498,6 +498,84 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         updatePresetLabel();
         refreshPads();
     };
+    presetListComponent->onPresetDeleted = [this] (int index)
+    {
+        auto& pm = processorRef.getPresetManager();
+        auto presetFile = pm.getPresetFile (index);
+        if (presetFile != juce::File())
+        {
+            auto presetId = PadMappingManager::makePresetId (presetFile);
+            processorRef.getPadMappingManager().clearMapping (presetId);
+        }
+
+        pm.deletePreset (index);
+        presetListComponent->refreshPresetList();
+        updatePresetLabel();
+        refreshPads();
+    };
+    presetListComponent->onPresetRenamed = [this] (int index, const juce::String& newName)
+    {
+        auto& pm = processorRef.getPresetManager();
+        auto oldFile = pm.getPresetFile (index);
+        auto oldPresetId = (oldFile != juce::File())
+                               ? PadMappingManager::makePresetId (oldFile)
+                               : juce::String();
+
+        if (pm.renamePreset (index, newName))
+        {
+            auto newFile = pm.getPresetFile (index);
+            if (oldPresetId.isNotEmpty() && newFile != juce::File())
+            {
+                auto newPresetId = PadMappingManager::makePresetId (newFile);
+                if (oldPresetId != newPresetId)
+                {
+                    auto& pmm = processorRef.getPadMappingManager();
+                    auto oldMapping = pmm.loadMapping (oldPresetId);
+                    if (oldMapping.has_value())
+                    {
+                        pmm.saveMapping (newPresetId, oldMapping.value());
+                        pmm.clearMapping (oldPresetId);
+                    }
+                }
+            }
+
+            presetListComponent->refreshPresetList();
+            updatePresetLabel();
+        }
+    };
+    presetListComponent->onSaveNewPreset = [this]
+    {
+        auto* alertWin = new juce::AlertWindow ("Save Preset",
+                                                 "Enter a name for the preset:",
+                                                 juce::MessageBoxIconType::QuestionIcon);
+        alertWin->addTextEditor ("name", "My Drum Kit");
+        alertWin->addButton ("Save", 1);
+        alertWin->addButton ("Cancel", 0);
+
+        alertWin->enterModalState (true, juce::ModalCallbackFunction::create (
+            [this, alertWin] (int result)
+            {
+                if (result == 1)
+                {
+                    auto name = alertWin->getTextEditorContents ("name").trim();
+                    if (name.isNotEmpty())
+                    {
+                        std::map<int, juce::File> mappings;
+                        for (auto& pad : MidiMapper::getAllPads())
+                        {
+                            auto file = processorRef.getSampleEngine().getSampleFile (pad.midiNote);
+                            if (file.existsAsFile())
+                                mappings[pad.midiNote] = file;
+                        }
+                        processorRef.getPresetManager().savePreset (name, mappings);
+                        processorRef.getPresetManager().scanForPresets();
+                        presetListComponent->refreshPresetList();
+                        updatePresetLabel();
+                    }
+                }
+                delete alertWin;
+            }), true);
+    };
     addAndMakeVisible (presetListComponent.get());
 
     for (auto& padInfo : MidiMapper::getAllPads())
