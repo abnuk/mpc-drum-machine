@@ -40,6 +40,7 @@ public:
     std::function<void (int sourceNote, int targetNote)> onPadSwapped;
     std::function<void()> onResetMapping;
     std::function<void (const juce::File&)> onLocateSample;
+    std::function<void (int midiNote, float volume)> onVolumeChanged;
 
     static const juce::String dragSourceId;
     static const juce::String browserDragPrefix;
@@ -56,6 +57,9 @@ private:
     juce::Point<int> dragStartPos;
 
     static constexpr int dragThreshold = 5;
+    static constexpr int sliderHeight = 14;
+
+    juce::Slider volumeSlider;
 
     juce::Rectangle<int> getLocateIconBounds() const;
     void drawLocateIcon (juce::Graphics& g) const;

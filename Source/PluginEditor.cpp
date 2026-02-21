@@ -533,7 +533,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
                     auto oldMapping = pmm.loadMapping (oldPresetId);
                     if (oldMapping.has_value())
                     {
-                        pmm.saveMapping (newPresetId, oldMapping.value());
+                        pmm.saveMapping (newPresetId, oldMapping->pads, oldMapping->volumes);
                         pmm.clearMapping (oldPresetId);
                     }
                 }
@@ -599,6 +599,11 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         pad->onLocateSample = [this] (const juce::File& file)
         {
             showSampleInBrowser (file);
+        };
+        pad->onVolumeChanged = [this] (int midiNote, float volume)
+        {
+            processorRef.getSampleEngine().setPadVolume (midiNote, volume);
+            processorRef.saveCurrentMappingOverlay();
         };
         addAndMakeVisible (pad);
         padComponents.add (pad);

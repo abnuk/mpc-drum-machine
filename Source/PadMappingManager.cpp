@@ -18,7 +18,8 @@ juce::File PadMappingManager::getMappingFile (const juce::String& presetId) cons
     return getMappingsDir().getChildFile (presetId + ".json");
 }
 
-void PadMappingManager::saveMapping (const juce::String& presetId, const PadMapping& mapping)
+void PadMappingManager::saveMapping (const juce::String& presetId, const PadMapping& mapping,
+                                     const VolumeMap& volumes)
 {
     auto dir = getMappingsDir();
     dir.createDirectory();
@@ -32,6 +33,11 @@ void PadMappingManager::saveMapping (const juce::String& presetId, const PadMapp
         juce::DynamicObject::Ptr pad = new juce::DynamicObject();
         pad->setProperty ("midiNote", note);
         pad->setProperty ("samplePath", sampleFile.getFullPathName());
+
+        auto volIt = volumes.find (note);
+        if (volIt != volumes.end() && std::abs (volIt->second - 1.0f) > 0.001f)
+            pad->setProperty ("volume", (double) volIt->second);
+
         padsArray.add (juce::var (pad.get()));
     }
 
@@ -41,7 +47,7 @@ void PadMappingManager::saveMapping (const juce::String& presetId, const PadMapp
     getMappingFile (presetId).replaceWithText (jsonText);
 }
 
-std::optional<PadMappingManager::PadMapping> PadMappingManager::loadMapping (const juce::String& presetId) const
+std::optional<PadMappingManager::MappingData> PadMappingManager::loadMapping (const juce::String& presetId) const
 {
     auto file = getMappingFile (presetId);
     if (! file.existsAsFile())
@@ -53,7 +59,7 @@ std::optional<PadMappingManager::PadMapping> PadMappingManager::loadMapping (con
     if (! parsed.isObject())
         return std::nullopt;
 
-    PadMapping mapping;
+    MappingData data;
     auto padsArray = parsed.getProperty ("pads", juce::var());
     if (padsArray.isArray())
     {
@@ -66,15 +72,19 @@ std::optional<PadMappingManager::PadMapping> PadMappingManager::loadMapping (con
             {
                 juce::File f (path);
                 if (f.existsAsFile())
-                    mapping[note] = f;
+                    data.pads[note] = f;
             }
+
+            float vol = (float) (double) padVar.getProperty ("volume", 1.0);
+            if (note >= 0 && std::abs (vol - 1.0f) > 0.001f)
+                data.volumes[note] = vol;
         }
     }
 
-    if (mapping.empty())
+    if (data.pads.empty())
         return std::nullopt;
 
-    return mapping;
+    return data;
 }
 
 bool PadMappingManager::hasCustomMapping (const juce::String& presetId) const

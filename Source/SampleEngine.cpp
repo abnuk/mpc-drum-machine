@@ -85,6 +85,7 @@ void SampleEngine::clearSample (int midiNote)
     slot.sampleFile = juce::File();
     slot.loaded = false;
     slot.missing = false;
+    slot.volume = 1.0f;
 }
 
 void SampleEngine::swapSamples (int noteA, int noteB)
@@ -107,6 +108,7 @@ void SampleEngine::swapSamples (int noteA, int noteB)
     std::swap (slotA.sampleFile, slotB.sampleFile);
     std::swap (slotA.loaded, slotB.loaded);
     std::swap (slotA.missing, slotB.missing);
+    std::swap (slotA.volume, slotB.volume);
 }
 
 bool SampleEngine::hasSample (int midiNote) const
@@ -128,6 +130,20 @@ juce::File SampleEngine::getSampleFile (int midiNote) const
     if (midiNote < 0 || midiNote >= kTotalSlots)
         return {};
     return slots[(size_t) midiNote].sampleFile;
+}
+
+void SampleEngine::setPadVolume (int midiNote, float volume)
+{
+    if (midiNote < 0 || midiNote >= kTotalSlots)
+        return;
+    slots[(size_t) midiNote].volume = juce::jlimit (0.0f, 2.0f, volume);
+}
+
+float SampleEngine::getPadVolume (int midiNote) const
+{
+    if (midiNote < 0 || midiNote >= kTotalSlots)
+        return 1.0f;
+    return slots[(size_t) midiNote].volume;
 }
 
 void SampleEngine::noteOn (int midiNote, float velocity)
@@ -177,7 +193,7 @@ void SampleEngine::renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int 
                 continue;
             }
 
-            float gain = voice.velocity;
+            float gain = voice.velocity * slot.volume;
             int outChannels = outputBuffer.getNumChannels();
             int srcChannels = slot.buffer.getNumChannels();
 

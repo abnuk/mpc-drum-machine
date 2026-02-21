@@ -100,6 +100,10 @@ void MPSDrumMachineProcessor::getStateInformation (juce::MemoryBlock& destData)
             auto* padEl = padsEl->createNewChildElement ("Pad");
             padEl->setAttribute ("note", pad.midiNote);
             padEl->setAttribute ("file", file.getFullPathName());
+
+            float vol = sampleEngine.getPadVolume (pad.midiNote);
+            if (std::abs (vol - 1.0f) > 0.001f)
+                padEl->setAttribute ("volume", (double) vol);
         }
     }
 
@@ -138,6 +142,9 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
                 if (file.existsAsFile())
                     sampleEngine.loadSample (note, file);
             }
+
+            if (note >= 0 && padEl->hasAttribute ("volume"))
+                sampleEngine.setPadVolume (note, (float) padEl->getDoubleAttribute ("volume", 1.0));
         }
     }
 
@@ -161,11 +168,14 @@ void MPSDrumMachineProcessor::loadKitSamples (const DkitPreset& kit)
 
     if (customMapping.has_value())
     {
-        for (auto& [note, file] : customMapping.value())
+        for (auto& [note, file] : customMapping->pads)
         {
             if (file.existsAsFile())
                 sampleEngine.loadSample (note, file);
         }
+
+        for (auto& [note, vol] : customMapping->volumes)
+            sampleEngine.setPadVolume (note, vol);
     }
     else
     {
@@ -206,14 +216,19 @@ void MPSDrumMachineProcessor::saveCurrentMappingOverlay()
     auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
 
     PadMappingManager::PadMapping mapping;
+    PadMappingManager::VolumeMap volumes;
     for (auto& pad : MidiMapper::getAllPads())
     {
         auto file = sampleEngine.getSampleFile (pad.midiNote);
         if (file.existsAsFile())
             mapping[pad.midiNote] = file;
+
+        float vol = sampleEngine.getPadVolume (pad.midiNote);
+        if (std::abs (vol - 1.0f) > 0.001f)
+            volumes[pad.midiNote] = vol;
     }
 
-    padMappingManager.saveMapping (presetId, mapping);
+    padMappingManager.saveMapping (presetId, mapping, volumes);
 }
 
 void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
@@ -234,6 +249,9 @@ void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
         else if (pad.sampleFile.isNotEmpty())
             sampleEngine.markSampleMissing (pad.midiNote, pad.sampleName);
     }
+
+    for (auto& pad : MidiMapper::getAllPads())
+        sampleEngine.setPadVolume (pad.midiNote, 1.0f);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

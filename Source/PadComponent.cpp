@@ -6,6 +6,21 @@ const juce::String PadComponent::browserDragPrefix = "MPSSampleDrag:";
 PadComponent::PadComponent (const PadInfo& info, SampleEngine& engine)
     : padInfo (info), sampleEngine (engine)
 {
+    volumeSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    volumeSlider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
+    volumeSlider.setRange (0.0, 2.0, 0.01);
+    volumeSlider.setValue (1.0, juce::dontSendNotification);
+    volumeSlider.setDoubleClickReturnValue (true, 1.0);
+    volumeSlider.setColour (juce::Slider::trackColourId, DarkLookAndFeel::accent.withAlpha (0.6f));
+    volumeSlider.setColour (juce::Slider::thumbColourId, DarkLookAndFeel::accent);
+    volumeSlider.setColour (juce::Slider::backgroundColourId, DarkLookAndFeel::bgLight);
+    volumeSlider.onValueChange = [this]
+    {
+        if (onVolumeChanged)
+            onVolumeChanged (padInfo.midiNote, (float) volumeSlider.getValue());
+    };
+    addAndMakeVisible (volumeSlider);
+
     updateSampleDisplay();
 }
 
@@ -56,6 +71,7 @@ void PadComponent::paint (juce::Graphics& g)
                             : DarkLookAndFeel::textBright);
     g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
     auto textArea = bounds.reduced (6.0f);
+    textArea.removeFromBottom ((float) sliderHeight + 2.0f);
     g.drawText (juce::String (padInfo.padName), textArea.removeFromTop (18.0f),
                 juce::Justification::centredLeft);
 
@@ -94,7 +110,13 @@ void PadComponent::paint (juce::Graphics& g)
         drawLocateIcon (g);
 }
 
-void PadComponent::resized() {}
+void PadComponent::resized()
+{
+    auto bounds = getLocalBounds().reduced (4);
+    auto sliderBounds = bounds.removeFromBottom (sliderHeight);
+    sliderBounds.removeFromRight (18);
+    volumeSlider.setBounds (sliderBounds);
+}
 
 void PadComponent::mouseDown (const juce::MouseEvent& event)
 {
@@ -325,6 +347,7 @@ void PadComponent::updateSampleDisplay()
 {
     sampleName = sampleEngine.getSampleName (padInfo.midiNote);
     sampleMissing = sampleEngine.isSampleMissing (padInfo.midiNote);
+    volumeSlider.setValue (sampleEngine.getPadVolume (padInfo.midiNote), juce::dontSendNotification);
     repaint();
 }
 

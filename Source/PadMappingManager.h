@@ -9,9 +9,17 @@ public:
     PadMappingManager();
 
     using PadMapping = std::map<int, juce::File>;
+    using VolumeMap = std::map<int, float>;
 
-    void saveMapping (const juce::String& presetId, const PadMapping& mapping);
-    std::optional<PadMapping> loadMapping (const juce::String& presetId) const;
+    struct MappingData
+    {
+        PadMapping pads;
+        VolumeMap volumes;
+    };
+
+    void saveMapping (const juce::String& presetId, const PadMapping& mapping,
+                      const VolumeMap& volumes = {});
+    std::optional<MappingData> loadMapping (const juce::String& presetId) const;
     bool hasCustomMapping (const juce::String& presetId) const;
     void clearMapping (const juce::String& presetId);
 

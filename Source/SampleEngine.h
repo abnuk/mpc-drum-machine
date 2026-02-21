@@ -25,6 +25,9 @@ public:
 
     void clearAllSamples();
 
+    void setPadVolume (int midiNote, float volume);
+    float getPadVolume (int midiNote) const;
+
     void markSampleMissing (int midiNote, const juce::String& name);
     bool isSampleMissing (int midiNote) const;
 
@@ -51,6 +54,7 @@ private:
         juce::File sampleFile;
         bool loaded = false;
         bool missing = false;
+        float volume = 1.0f;
         std::array<Voice, kMaxVoicesPerPad> voices;
     };
 
