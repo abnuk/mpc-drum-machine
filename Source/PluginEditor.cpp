@@ -6,7 +6,7 @@
 // SettingsOverlay
 //==============================================================================
 
-SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (proc)
+SettingsOverlay::SettingsOverlay (BeatwerkProcessor& proc) : processor (proc)
 {
     titleLabel.setText ("Settings", juce::dontSendNotification);
     titleLabel.setFont (juce::FontOptions (20.0f, juce::Font::bold));
@@ -374,7 +374,7 @@ void SettingsOverlay::doAbletonImport()
                         for (auto& err : importResult.errorMessages)
                             details += "  - " + err + "\n";
                     }
-                    details += "\nFull log: ~/Library/Application Support/MPSDrumMachine/import_log.txt";
+                    details += "\nFull log: ~/Library/Application Support/Beatwerk/import_log.txt";
 
                     juce::AlertWindow::showMessageBoxAsync (
                         juce::MessageBoxIconType::InfoIcon,
@@ -515,10 +515,10 @@ void SettingsOverlay::resized()
 }
 
 //==============================================================================
-// MPSDrumMachineEditor
+// BeatwerkEditor
 //==============================================================================
 
-MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
+BeatwerkEditor::BeatwerkEditor (BeatwerkProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
     setLookAndFeel (&darkLnf);
@@ -679,7 +679,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
 
     processorRef.onKitChanged = [this]
     {
-        juce::MessageManager::callAsync ([safeThis = juce::Component::SafePointer<MPSDrumMachineEditor> (this)]
+        juce::MessageManager::callAsync ([safeThis = juce::Component::SafePointer<BeatwerkEditor> (this)]
         {
             if (safeThis != nullptr)
             {
@@ -695,14 +695,14 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
     setResizeLimits (600, 500, 1600, 1200);
 }
 
-MPSDrumMachineEditor::~MPSDrumMachineEditor()
+BeatwerkEditor::~BeatwerkEditor()
 {
     processorRef.onMidiTrigger = nullptr;
     processorRef.onKitChanged = nullptr;
     setLookAndFeel (nullptr);
 }
 
-void MPSDrumMachineEditor::paint (juce::Graphics& g)
+void BeatwerkEditor::paint (juce::Graphics& g)
 {
     g.fillAll (DarkLookAndFeel::bgDark);
 
@@ -713,7 +713,7 @@ void MPSDrumMachineEditor::paint (juce::Graphics& g)
     g.fillRect (0, 49, getWidth(), 2);
 }
 
-void MPSDrumMachineEditor::resized()
+void BeatwerkEditor::resized()
 {
     auto area = getLocalBounds();
 
@@ -760,13 +760,13 @@ void MPSDrumMachineEditor::resized()
     }
 }
 
-void MPSDrumMachineEditor::refreshPads()
+void BeatwerkEditor::refreshPads()
 {
     for (auto* pad : padComponents)
         pad->updateSampleDisplay();
 }
 
-void MPSDrumMachineEditor::rebuildPadGrid()
+void BeatwerkEditor::rebuildPadGrid()
 {
     padComponents.clear (true);
 
@@ -803,7 +803,7 @@ void MPSDrumMachineEditor::rebuildPadGrid()
     }
 }
 
-void MPSDrumMachineEditor::updatePresetLabel()
+void BeatwerkEditor::updatePresetLabel()
 {
     auto& pm = processorRef.getPresetManager();
     int idx = pm.getCurrentPresetIndex();
@@ -820,11 +820,11 @@ void MPSDrumMachineEditor::updatePresetLabel()
             presetLabel.setText (juce::String (total) + " presets available",
                                 juce::dontSendNotification);
         else
-            presetLabel.setText ("MPS Drum Machine", juce::dontSendNotification);
+            presetLabel.setText ("Beatwerk", juce::dontSendNotification);
     }
 }
 
-void MPSDrumMachineEditor::togglePresetView()
+void BeatwerkEditor::togglePresetView()
 {
     showingPresetList = ! showingPresetList;
 
@@ -855,7 +855,7 @@ void MPSDrumMachineEditor::togglePresetView()
     resized();
 }
 
-void MPSDrumMachineEditor::showSettings()
+void BeatwerkEditor::showSettings()
 {
     settingsOverlay = std::make_unique<SettingsOverlay> (processorRef);
     settingsOverlay->onClose = [this] { hideSettings(); };
@@ -863,13 +863,13 @@ void MPSDrumMachineEditor::showSettings()
     addAndMakeVisible (settingsOverlay.get());
 }
 
-void MPSDrumMachineEditor::hideSettings()
+void BeatwerkEditor::hideSettings()
 {
     settingsOverlay.reset();
     updatePresetLabel();
 }
 
-void MPSDrumMachineEditor::toggleSampleBrowser()
+void BeatwerkEditor::toggleSampleBrowser()
 {
     showingSampleBrowser = ! showingSampleBrowser;
 
@@ -890,7 +890,7 @@ void MPSDrumMachineEditor::toggleSampleBrowser()
     resized();
 }
 
-void MPSDrumMachineEditor::showSampleInBrowser (const juce::File& file)
+void BeatwerkEditor::showSampleInBrowser (const juce::File& file)
 {
     if (! showingSampleBrowser)
     {
@@ -907,7 +907,7 @@ void MPSDrumMachineEditor::showSampleInBrowser (const juce::File& file)
         sampleBrowser->revealFile (file);
 }
 
-bool MPSDrumMachineEditor::shouldDropFilesWhenDraggedExternally (
+bool BeatwerkEditor::shouldDropFilesWhenDraggedExternally (
     const juce::DragAndDropTarget::SourceDetails& details,
     juce::StringArray& files, bool& canMoveFiles)
 {

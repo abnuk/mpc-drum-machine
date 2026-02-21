@@ -6,11 +6,11 @@
 #include "PresetManager.h"
 #include "PadMappingManager.h"
 
-class MPSDrumMachineProcessor : public juce::AudioProcessor
+class BeatwerkProcessor : public juce::AudioProcessor
 {
 public:
-    MPSDrumMachineProcessor();
-    ~MPSDrumMachineProcessor() override;
+    BeatwerkProcessor();
+    ~BeatwerkProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -68,5 +68,5 @@ private:
     PresetManager presetManager;
     PadMappingManager padMappingManager;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MPSDrumMachineProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BeatwerkProcessor)
 };

@@ -10,7 +10,7 @@ juce::String PadMappingManager::makePresetId (const juce::File& presetFile)
 juce::File PadMappingManager::getMappingsDir() const
 {
     auto appData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
-    return appData.getChildFile ("MPSDrumMachine/PadMappings");
+    return appData.getChildFile ("Beatwerk/PadMappings");
 }
 
 juce::File PadMappingManager::getMappingFile (const juce::String& presetId) const

@@ -1,24 +1,24 @@
 cmake_minimum_required(VERSION 3.22)
-project(MPSDrumMachine VERSION 1.0.0)
+project(Beatwerk VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(JUCE)
 
-juce_add_plugin(MPSDrumMachine
-    COMPANY_NAME "MPS"
-    PLUGIN_MANUFACTURER_CODE Mpsd
-    PLUGIN_CODE Mps1
+juce_add_plugin(Beatwerk
+    COMPANY_NAME "Beatwerk"
+    PLUGIN_MANUFACTURER_CODE Btwk
+    PLUGIN_CODE Btw1
     FORMATS AU VST3 Standalone
-    PRODUCT_NAME "MPS Drum Machine"
+    PRODUCT_NAME "Beatwerk"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
-target_sources(MPSDrumMachine
+target_sources(Beatwerk
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
@@ -34,14 +34,14 @@ target_sources(MPSDrumMachine
         Source/AbletonImporter.cpp
         Source/SampleBrowserComponent.cpp)
 
-target_compile_definitions(MPSDrumMachine
+target_compile_definitions(Beatwerk
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0)
 
-target_link_libraries(MPSDrumMachine
+target_link_libraries(Beatwerk
     PRIVATE
         juce::juce_audio_utils
         juce::juce_gui_extra

@@ -3,7 +3,7 @@
 static juce::File getImportLogFile()
 {
     return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-               .getChildFile ("MPSDrumMachine/import_log.txt");
+               .getChildFile ("Beatwerk/import_log.txt");
 }
 
 static void logImport (const juce::String& msg)

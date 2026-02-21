@@ -1,7 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-MPSDrumMachineProcessor::MPSDrumMachineProcessor()
+BeatwerkProcessor::BeatwerkProcessor()
     : AudioProcessor (BusesProperties()
                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
@@ -13,19 +13,19 @@ MPSDrumMachineProcessor::MPSDrumMachineProcessor()
     juce::Thread::launch ([this] { presetManager.scanForPresets(); });
 }
 
-MPSDrumMachineProcessor::~MPSDrumMachineProcessor() {}
+BeatwerkProcessor::~BeatwerkProcessor() {}
 
-void MPSDrumMachineProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void BeatwerkProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     sampleEngine.prepareToPlay (sampleRate, samplesPerBlock);
 }
 
-void MPSDrumMachineProcessor::releaseResources()
+void BeatwerkProcessor::releaseResources()
 {
     sampleEngine.releaseResources();
 }
 
-bool MPSDrumMachineProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool BeatwerkProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
         && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
@@ -34,7 +34,7 @@ bool MPSDrumMachineProcessor::isBusesLayoutSupported (const BusesLayout& layouts
     return true;
 }
 
-void MPSDrumMachineProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+void BeatwerkProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -73,14 +73,14 @@ void MPSDrumMachineProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     sampleEngine.renderNextBlock (buffer, 0, buffer.getNumSamples());
 }
 
-juce::AudioProcessorEditor* MPSDrumMachineProcessor::createEditor()
+juce::AudioProcessorEditor* BeatwerkProcessor::createEditor()
 {
-    return new MPSDrumMachineEditor (*this);
+    return new BeatwerkEditor (*this);
 }
 
-void MPSDrumMachineProcessor::getStateInformation (juce::MemoryBlock& destData)
+void BeatwerkProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    auto state = std::make_unique<juce::XmlElement> ("MPSDrumMachineState");
+    auto state = std::make_unique<juce::XmlElement> ("BeatwerkState");
 
     state->setAttribute ("samplesPath", presetManager.getSamplesDir().getFullPathName());
     state->setAttribute ("presetsPath", presetManager.getPresetsDir().getFullPathName());
@@ -111,10 +111,10 @@ void MPSDrumMachineProcessor::getStateInformation (juce::MemoryBlock& destData)
     copyXmlToBinary (*state, destData);
 }
 
-void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInBytes)
+void BeatwerkProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     auto state = getXmlFromBinary (data, sizeInBytes);
-    if (state == nullptr || ! state->hasTagName ("MPSDrumMachineState"))
+    if (state == nullptr || ! state->hasTagName ("BeatwerkState"))
         return;
 
     auto samplesPath = state->getStringAttribute ("samplesPath");
@@ -166,7 +166,7 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
     }
 }
 
-void MPSDrumMachineProcessor::loadKitSamples (const DkitPreset& kit)
+void BeatwerkProcessor::loadKitSamples (const DkitPreset& kit)
 {
     sampleEngine.clearAllSamples();
 
@@ -197,24 +197,24 @@ void MPSDrumMachineProcessor::loadKitSamples (const DkitPreset& kit)
     }
 }
 
-void MPSDrumMachineProcessor::setSamplesPath (const juce::File& path)
+void BeatwerkProcessor::setSamplesPath (const juce::File& path)
 {
     presetManager.setSamplesDir (path);
 }
 
-void MPSDrumMachineProcessor::setPresetsPath (const juce::File& path)
+void BeatwerkProcessor::setPresetsPath (const juce::File& path)
 {
     presetManager.setPresetsDir (path);
     presetManager.scanForPresets();
 }
 
-void MPSDrumMachineProcessor::swapPadsAndSave (int noteA, int noteB)
+void BeatwerkProcessor::swapPadsAndSave (int noteA, int noteB)
 {
     sampleEngine.swapSamples (noteA, noteB);
     saveCurrentMappingOverlay();
 }
 
-void MPSDrumMachineProcessor::saveCurrentMappingOverlay()
+void BeatwerkProcessor::saveCurrentMappingOverlay()
 {
     auto& kit = presetManager.getCurrentKit();
     if (kit.sourceFile == juce::File())
@@ -238,7 +238,7 @@ void MPSDrumMachineProcessor::saveCurrentMappingOverlay()
     padMappingManager.saveMapping (presetId, mapping, volumes);
 }
 
-void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
+void BeatwerkProcessor::resetCurrentMappingToDefault()
 {
     auto& kit = presetManager.getCurrentKit();
     if (kit.sourceFile == juce::File())
@@ -261,7 +261,7 @@ void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
         sampleEngine.setPadVolume (pad.midiNote, 1.0f);
 }
 
-void MPSDrumMachineProcessor::setActiveKit (const juce::String& kitId)
+void BeatwerkProcessor::setActiveKit (const juce::String& kitId)
 {
     midiMapper.setActiveKit (kitId);
 
@@ -269,12 +269,12 @@ void MPSDrumMachineProcessor::setActiveKit (const juce::String& kitId)
         onKitChanged();
 }
 
-juce::String MPSDrumMachineProcessor::getActiveKitId() const
+juce::String BeatwerkProcessor::getActiveKitId() const
 {
     return midiMapper.getActiveKitId();
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new MPSDrumMachineProcessor();
+    return new BeatwerkProcessor();
 }

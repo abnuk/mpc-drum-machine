@@ -9,13 +9,13 @@ PresetManager::PresetManager()
 juce::File PresetManager::getDefaultSamplesDir()
 {
     return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-               .getChildFile ("MPSDrumMachine/Samples");
+               .getChildFile ("Beatwerk/Samples");
 }
 
 juce::File PresetManager::getDefaultPresetsDir()
 {
     return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-               .getChildFile ("MPSDrumMachine/Presets");
+               .getChildFile ("Beatwerk/Presets");
 }
 
 void PresetManager::setSamplesDir (const juce::File& dir)

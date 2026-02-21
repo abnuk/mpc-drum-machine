@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# MPS Drum Machine — macOS Installer (.pkg) Builder
+# Beatwerk — macOS Installer (.pkg) Builder
 #
 # Usage:
 #   ./installer/create_installer.sh              # uses existing Release build
@@ -8,7 +8,7 @@
 #   ./installer/create_installer.sh --sign "Developer ID Installer: Name (TEAM_ID)"
 #
 # Output:
-#   installer/output/MPS-Drum-Machine-<version>-macOS.pkg
+#   installer/output/Beatwerk-<version>-macOS.pkg
 #
 
 set -euo pipefail
@@ -16,19 +16,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
-ARTEFACTS_DIR="${BUILD_DIR}/MPSDrumMachine_artefacts/Release"
+ARTEFACTS_DIR="${BUILD_DIR}/Beatwerk_artefacts/Release"
 INSTALLER_DIR="${SCRIPT_DIR}"
 OUTPUT_DIR="${INSTALLER_DIR}/output"
 STAGING_DIR="${INSTALLER_DIR}/staging"
 RESOURCES_DIR="${INSTALLER_DIR}/resources"
 
-APP_NAME="MPS Drum Machine"
-IDENTIFIER_BASE="com.mps.drum-machine"
+APP_NAME="Beatwerk"
+IDENTIFIER_BASE="com.beatwerk.app"
 
 # Read version from CMakeLists.txt
-VERSION=$(grep -oP '(?<=project\(MPSDrumMachine VERSION )\d+\.\d+\.\d+' "${PROJECT_DIR}/CMakeLists.txt" 2>/dev/null || echo "")
+VERSION=$(grep -oP '(?<=project\(Beatwerk VERSION )\d+\.\d+\.\d+' "${PROJECT_DIR}/CMakeLists.txt" 2>/dev/null || echo "")
 if [ -z "$VERSION" ]; then
-    VERSION=$(sed -n 's/.*project(MPSDrumMachine VERSION \([0-9.]*\)).*/\1/p' "${PROJECT_DIR}/CMakeLists.txt")
+    VERSION=$(sed -n 's/.*project(Beatwerk VERSION \([0-9.]*\)).*/\1/p' "${PROJECT_DIR}/CMakeLists.txt")
 fi
 if [ -z "$VERSION" ]; then
     VERSION="1.0.0"
@@ -66,7 +66,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "============================================"
-echo "  MPS Drum Machine — macOS Installer Builder"
+echo "  Beatwerk — macOS Installer Builder"
 echo "  Version: ${VERSION}"
 echo "============================================"
 echo ""
@@ -121,7 +121,7 @@ pkgbuild \
     --identifier "${IDENTIFIER_BASE}.standalone" \
     --version "${VERSION}" \
     --install-location "/" \
-    "${OUTPUT_DIR}/MPSDrumMachine-Standalone.pkg" \
+    "${OUTPUT_DIR}/Beatwerk-Standalone.pkg" \
     > /dev/null 2>&1
 
 echo "       - Standalone package created"
@@ -136,7 +136,7 @@ pkgbuild \
     --identifier "${IDENTIFIER_BASE}.vst3" \
     --version "${VERSION}" \
     --install-location "/" \
-    "${OUTPUT_DIR}/MPSDrumMachine-VST3.pkg" \
+    "${OUTPUT_DIR}/Beatwerk-VST3.pkg" \
     > /dev/null 2>&1
 
 echo "       - VST3 package created"
@@ -151,7 +151,7 @@ pkgbuild \
     --identifier "${IDENTIFIER_BASE}.au" \
     --version "${VERSION}" \
     --install-location "/" \
-    "${OUTPUT_DIR}/MPSDrumMachine-AU.pkg" \
+    "${OUTPUT_DIR}/Beatwerk-AU.pkg" \
     > /dev/null 2>&1
 
 echo "       - Audio Unit package created"
@@ -179,7 +179,7 @@ sed "s/__VERSION__/${VERSION}/g" "${RESOURCES_DIR}/welcome.html" > "${RESOURCES_
 cp "${RESOURCES_DIR}/readme.html" "${RESOURCES_STAGE}/readme.html"
 
 # Build the final product archive
-INSTALLER_PKG="${OUTPUT_DIR}/MPS-Drum-Machine-${VERSION}-macOS.pkg"
+INSTALLER_PKG="${OUTPUT_DIR}/Beatwerk-${VERSION}-macOS.pkg"
 
 SIGN_ARGS=()
 if [ -n "$SIGN_IDENTITY" ]; then
@@ -200,9 +200,9 @@ echo "       Product installer created."
 echo "[5/5] Cleaning up..."
 
 rm -rf "${STAGING_DIR}"
-rm -f "${OUTPUT_DIR}/MPSDrumMachine-Standalone.pkg"
-rm -f "${OUTPUT_DIR}/MPSDrumMachine-VST3.pkg"
-rm -f "${OUTPUT_DIR}/MPSDrumMachine-AU.pkg"
+rm -f "${OUTPUT_DIR}/Beatwerk-Standalone.pkg"
+rm -f "${OUTPUT_DIR}/Beatwerk-VST3.pkg"
+rm -f "${OUTPUT_DIR}/Beatwerk-AU.pkg"
 rm -f "${DIST_XML}"
 
 INSTALLER_SIZE=$(du -sh "${INSTALLER_PKG}" | cut -f1)

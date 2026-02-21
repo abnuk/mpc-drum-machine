@@ -10,7 +10,7 @@
 class SettingsOverlay : public juce::Component
 {
 public:
-    SettingsOverlay (MPSDrumMachineProcessor& proc);
+    SettingsOverlay (BeatwerkProcessor& proc);
     ~SettingsOverlay() override;
     void paint (juce::Graphics& g) override;
     void resized() override;
@@ -18,7 +18,7 @@ public:
     std::function<void()> onClose;
 
 private:
-    MPSDrumMachineProcessor& processor;
+    BeatwerkProcessor& processor;
     juce::Label titleLabel;
 
     juce::Label kitLabel;
@@ -60,12 +60,12 @@ private:
     void doAbletonImport();
 };
 
-class MPSDrumMachineEditor : public juce::AudioProcessorEditor,
+class BeatwerkEditor : public juce::AudioProcessorEditor,
                              public juce::DragAndDropContainer
 {
 public:
-    MPSDrumMachineEditor (MPSDrumMachineProcessor&);
-    ~MPSDrumMachineEditor() override;
+    BeatwerkEditor (BeatwerkProcessor&);
+    ~BeatwerkEditor() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -79,7 +79,7 @@ public:
         juce::StringArray& files, bool& canMoveFiles) override;
 
 private:
-    MPSDrumMachineProcessor& processorRef;
+    BeatwerkProcessor& processorRef;
     DarkLookAndFeel darkLnf;
 
     juce::TextButton prevButton { "<" };
@@ -105,5 +105,5 @@ private:
     void showSettings();
     void hideSettings();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MPSDrumMachineEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BeatwerkEditor)
 };

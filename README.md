@@ -1,4 +1,4 @@
-# MPS Drum Machine
+# Beatwerk
 
 A drum machine audio plugin that bridges **Ableton Live Drum Racks** with hardware MIDI controllers. Load `.adg` presets, trigger samples from your pads, rearrange kits with drag & drop, and navigate presets via MIDI — all from a dark-themed UI designed for live performance.
 
@@ -12,9 +12,9 @@ Built with [JUCE](https://juce.com/) and C++20. Available as **VST3**, **Audio U
 - Parses gzipped Ableton XML, extracts sample paths, and intelligently maps samples to pads using keyword matching (kick, snare, tom, hihat, crash, ride, etc.)
 - Supports relative path resolution for Core Library, User Library, and external sample references
 
-### 24-Pad Grid
+### Pad Grid
 
-- 4x6 pad layout based on the Roland MPS-1000 mapping (MIDI notes 21, 23, 36-59)
+- Configurable pad layout with multiple electronic drum kit mappings supported
 - Each pad displays: name, trigger type (Head / Rim / X-Stick / Open / Closed / etc.), MIDI note, and loaded sample name
 - Velocity-sensitive triggering with visual flash animation
 - Click a pad to preview the sample
@@ -45,7 +45,7 @@ Built with [JUCE](https://juce.com/) and C++20. Available as **VST3**, **Audio U
 ### Preset Saving
 
 - Save customized kits as JSON presets
-- Stored in `~/Library/Application Support/MPSDrumMachine/Presets/`
+- Stored in `~/Library/Application Support/Beatwerk/Presets/`
 - Saved presets appear alongside Ableton presets in the browser
 
 ### Sample Engine
@@ -59,13 +59,13 @@ Built with [JUCE](https://juce.com/) and C++20. Available as **VST3**, **Audio U
 
 ### macOS Installer
 
-Download `MPS-Drum-Machine-1.0.0-macOS.pkg` from the [Releases](https://github.com/abnuk/mpc-drum-machine/releases) page and run it. You can choose which components to install:
+Download `Beatwerk-1.0.0-macOS.pkg` from the [Releases](https://github.com/abnuk/beatwerk/releases) page and run it. You can choose which components to install:
 
 | Component | Install Location |
 |---|---|
-| Standalone App | `/Applications/MPS Drum Machine.app` |
-| VST3 Plugin | `/Library/Audio/Plug-Ins/VST3/MPS Drum Machine.vst3` |
-| Audio Unit | `/Library/Audio/Plug-Ins/Components/MPS Drum Machine.component` |
+| Standalone App | `/Applications/Beatwerk.app` |
+| VST3 Plugin | `/Library/Audio/Plug-Ins/VST3/Beatwerk.vst3` |
+| Audio Unit | `/Library/Audio/Plug-Ins/Components/Beatwerk.component` |
 
 After installing, rescan plugins in your DAW if needed.
 
@@ -88,13 +88,13 @@ Or manually remove the files from the locations listed above.
 ### Build
 
 ```bash
-git clone --recursive https://github.com/abnuk/mpc-drum-machine.git
-cd mpc-drum-machine
+git clone --recursive https://github.com/abnuk/beatwerk.git
+cd beatwerk
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Build artefacts will be in `build/MPSDrumMachine_artefacts/Release/`.
+Build artefacts will be in `build/Beatwerk_artefacts/Release/`.
 
 ### Universal Binary (Apple Silicon + Intel)
 
@@ -119,7 +119,7 @@ To sign the installer for distribution:
 ## Project Structure
 
 ```
-mps-drum-machine/
+beatwerk/
 ├── CMakeLists.txt           # Build configuration
 ├── Source/
 │   ├── PluginProcessor.*    # Audio processing & state management

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-    <title>MPS Drum Machine</title>
-    <organization>com.mps</organization>
+    <title>Beatwerk</title>
+    <organization>com.beatwerk</organization>
     <options customize="always" require-scripts="false" hostArchitectures="x86_64,arm64"/>
 
     <welcome file="welcome.html" mime-type="text/html"/>
@@ -17,32 +17,32 @@
 
     <choice id="choice-standalone"
             title="Standalone Application"
-            description="Install MPS Drum Machine standalone application to /Applications."
+            description="Install Beatwerk standalone application to /Applications."
             start_selected="true"
             start_enabled="true"
             start_visible="true">
-        <pkg-ref id="com.mps.drum-machine.standalone"/>
+        <pkg-ref id="com.beatwerk.app.standalone"/>
     </choice>
 
     <choice id="choice-vst3"
             title="VST3 Plugin"
-            description="Install MPS Drum Machine VST3 plugin to /Library/Audio/Plug-Ins/VST3."
+            description="Install Beatwerk VST3 plugin to /Library/Audio/Plug-Ins/VST3."
             start_selected="true"
             start_enabled="true"
             start_visible="true">
-        <pkg-ref id="com.mps.drum-machine.vst3"/>
+        <pkg-ref id="com.beatwerk.app.vst3"/>
     </choice>
 
     <choice id="choice-au"
             title="Audio Unit Plugin"
-            description="Install MPS Drum Machine Audio Unit plugin to /Library/Audio/Plug-Ins/Components."
+            description="Install Beatwerk Audio Unit plugin to /Library/Audio/Plug-Ins/Components."
             start_selected="true"
             start_enabled="true"
             start_visible="true">
-        <pkg-ref id="com.mps.drum-machine.au"/>
+        <pkg-ref id="com.beatwerk.app.au"/>
     </choice>
 
-    <pkg-ref id="com.mps.drum-machine.standalone" version="__VERSION__" installKBytes="__STANDALONE_SIZE__">MPSDrumMachine-Standalone.pkg</pkg-ref>
-    <pkg-ref id="com.mps.drum-machine.vst3" version="__VERSION__" installKBytes="__VST3_SIZE__">MPSDrumMachine-VST3.pkg</pkg-ref>
-    <pkg-ref id="com.mps.drum-machine.au" version="__VERSION__" installKBytes="__AU_SIZE__">MPSDrumMachine-AU.pkg</pkg-ref>
+    <pkg-ref id="com.beatwerk.app.standalone" version="__VERSION__" installKBytes="__STANDALONE_SIZE__">Beatwerk-Standalone.pkg</pkg-ref>
+    <pkg-ref id="com.beatwerk.app.vst3" version="__VERSION__" installKBytes="__VST3_SIZE__">Beatwerk-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.beatwerk.app.au" version="__VERSION__" installKBytes="__AU_SIZE__">Beatwerk-AU.pkg</pkg-ref>
 </installer-gui-script>

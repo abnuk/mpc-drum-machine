@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# MPS Drum Machine — Uninstaller for macOS
+# Beatwerk — Uninstaller for macOS
 #
 
 set -e
 
-APP_NAME="MPS Drum Machine"
+APP_NAME="Beatwerk"
 
 STANDALONE_PATH="/Applications/${APP_NAME}.app"
 VST3_PATH="/Library/Audio/Plug-Ins/VST3/${APP_NAME}.vst3"
 AU_PATH="/Library/Audio/Plug-Ins/Components/${APP_NAME}.component"
 
-echo "=== MPS Drum Machine Uninstaller ==="
+echo "=== Beatwerk Uninstaller ==="
 echo ""
 echo "This will remove the following components (if present):"
 echo "  - ${STANDALONE_PATH}"
@@ -47,7 +47,7 @@ if [ -d "$AU_PATH" ]; then
 fi
 
 # Forget installer receipts
-pkgutil --pkgs 2>/dev/null | grep "com.mps.drum-machine" | while read -r pkg; do
+pkgutil --pkgs 2>/dev/null | grep "com.beatwerk.app" | while read -r pkg; do
     echo "Removing package receipt: ${pkg}"
     sudo pkgutil --forget "$pkg" 2>/dev/null || true
 done
@@ -57,5 +57,5 @@ if [ $REMOVED -gt 0 ]; then
     echo "Done. Removed ${REMOVED} component(s)."
     echo "You may need to rescan plugins in your DAW."
 else
-    echo "No MPS Drum Machine components were found on this system."
+    echo "No Beatwerk components were found on this system."
 fi
