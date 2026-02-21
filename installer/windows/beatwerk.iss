@@ -31,7 +31,6 @@ OutputBaseFilename={#AppName}-{#AppVersion}-Windows
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64
-ArchitecturesInstallMode=x64
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#AppExeName}
 
