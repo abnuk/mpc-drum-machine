@@ -1,16 +1,22 @@
 cmake_minimum_required(VERSION 3.22)
-project(Beatwerk VERSION 1.1.0)
+project(Beatwerk VERSION 1.1.1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(JUCE)
 
+if(APPLE)
+    set(BEATWERK_FORMATS AU VST3 Standalone)
+else()
+    set(BEATWERK_FORMATS VST3 Standalone)
+endif()
+
 juce_add_plugin(Beatwerk
     COMPANY_NAME "Beatwerk"
     PLUGIN_MANUFACTURER_CODE Btwk
     PLUGIN_CODE Btw1
-    FORMATS AU VST3 Standalone
+    FORMATS ${BEATWERK_FORMATS}
     PRODUCT_NAME "Beatwerk"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
