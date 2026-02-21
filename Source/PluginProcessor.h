@@ -38,21 +38,23 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Public access for editor
     MidiMapper& getMidiMapper() { return midiMapper; }
     SampleEngine& getSampleEngine() { return sampleEngine; }
     AdgParser& getAdgParser() { return adgParser; }
     PresetManager& getPresetManager() { return presetManager; }
 
-    // Notify editor of MIDI trigger (for flash animation)
-    std::function<void(int midiNote, float velocity)> onMidiTrigger;
+    std::function<void (int midiNote, float velocity)> onMidiTrigger;
 
-    void loadKitSamples (const AdgDrumKit& kit);
+    void loadKitSamples (const DkitPreset& kit);
 
-    // Pad mapping overlay (drag & drop rearrangements)
     void swapPadsAndSave (int noteA, int noteB);
     void saveCurrentMappingOverlay();
     void resetCurrentMappingToDefault();
+
+    void setSamplesPath (const juce::File& path);
+    void setPresetsPath (const juce::File& path);
+    juce::File getSamplesPath() const { return presetManager.getSamplesDir(); }
+    juce::File getPresetsPath() const { return presetManager.getPresetsDir(); }
 
 private:
     MidiMapper midiMapper;

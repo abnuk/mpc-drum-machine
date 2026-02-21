@@ -67,6 +67,7 @@ void SampleEngine::loadSample (int midiNote, const juce::File& file)
         slot.sampleName = file.getFileNameWithoutExtension();
         slot.sampleFile = file;
         slot.loaded = true;
+        slot.missing = false;
     }
 }
 
@@ -83,6 +84,7 @@ void SampleEngine::clearSample (int midiNote)
     slot.sampleName.clear();
     slot.sampleFile = juce::File();
     slot.loaded = false;
+    slot.missing = false;
 }
 
 void SampleEngine::swapSamples (int noteA, int noteB)
@@ -104,6 +106,7 @@ void SampleEngine::swapSamples (int noteA, int noteB)
     std::swap (slotA.sampleName, slotB.sampleName);
     std::swap (slotA.sampleFile, slotB.sampleFile);
     std::swap (slotA.loaded, slotB.loaded);
+    std::swap (slotA.missing, slotB.missing);
 }
 
 bool SampleEngine::hasSample (int midiNote) const
@@ -196,4 +199,27 @@ void SampleEngine::clearAllSamples()
 {
     for (int i = 0; i < kTotalSlots; ++i)
         clearSample (i);
+}
+
+void SampleEngine::markSampleMissing (int midiNote, const juce::String& name)
+{
+    if (midiNote < 0 || midiNote >= kTotalSlots)
+        return;
+
+    std::lock_guard<std::mutex> lock (loadMutex);
+    auto& slot = slots[(size_t) midiNote];
+    for (auto& voice : slot.voices)
+        voice.active.store (false);
+    slot.buffer.setSize (0, 0);
+    slot.sampleName = name;
+    slot.sampleFile = juce::File();
+    slot.loaded = false;
+    slot.missing = true;
+}
+
+bool SampleEngine::isSampleMissing (int midiNote) const
+{
+    if (midiNote < 0 || midiNote >= kTotalSlots)
+        return false;
+    return slots[(size_t) midiNote].missing;
 }

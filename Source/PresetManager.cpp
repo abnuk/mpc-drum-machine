@@ -1,82 +1,55 @@
 #include "PresetManager.h"
-#include <fstream>
 
-static juce::File getLogFile()
+PresetManager::PresetManager()
 {
-    return juce::File::getSpecialLocation (juce::File::userDesktopDirectory)
-               .getChildFile ("mps_drum_debug.log");
+    samplesDir = getDefaultSamplesDir();
+    presetsDir = getDefaultPresetsDir();
 }
 
-static void logPM (const std::string& msg)
+juce::File PresetManager::getDefaultSamplesDir()
 {
-    getLogFile().appendText ("[PresetMgr] " + juce::String (msg) + "\n");
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+               .getChildFile ("MPSDrumMachine/Samples");
 }
 
-PresetManager::PresetManager (AdgParser& parser) : adgParser (parser) {}
-
-void PresetManager::addScanDirectory (const juce::File& dir)
+juce::File PresetManager::getDefaultPresetsDir()
 {
-    if (dir.isDirectory())
-    {
-        scanDirectories.push_back (dir);
-        logPM ("addScanDirectory: " + dir.getFullPathName().toStdString());
-    }
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+               .getChildFile ("MPSDrumMachine/Presets");
 }
 
-void PresetManager::clearScanDirectories()
+void PresetManager::setSamplesDir (const juce::File& dir)
 {
-    scanDirectories.clear();
+    samplesDir = dir;
+}
+
+void PresetManager::setPresetsDir (const juce::File& dir)
+{
+    presetsDir = dir;
 }
 
 void PresetManager::scanForPresets()
 {
     presets.clear();
 
-    logPM ("scanForPresets: scanning " + std::to_string (scanDirectories.size()) + " directories");
+    if (! presetsDir.isDirectory())
+        return;
 
-    for (auto& dir : scanDirectories)
-        scanDirectory (dir);
+    auto dkitFiles = presetsDir.findChildFiles (juce::File::findFiles, true, "*.dkit");
+    dkitFiles.sort();
 
-    auto customDir = getCustomPresetsDir();
-    if (customDir.isDirectory())
+    for (auto& f : dkitFiles)
     {
-        auto jsonFiles = customDir.findChildFiles (juce::File::findFiles, true, "*.json");
-        for (auto& f : jsonFiles)
-        {
-            PresetEntry entry;
-            entry.name = f.getFileNameWithoutExtension();
-            entry.file = f;
-            entry.isCustom = true;
-            presets.push_back (entry);
-        }
+        PresetEntry entry;
+        entry.name = f.getFileNameWithoutExtension();
+        entry.file = f;
+        presets.push_back (entry);
     }
 
     std::sort (presets.begin(), presets.end(), [] (const PresetEntry& a, const PresetEntry& b)
     {
         return a.name.compareIgnoreCase (b.name) < 0;
     });
-
-    logPM ("scanForPresets: total presets found = " + std::to_string (presets.size()));
-}
-
-void PresetManager::scanDirectory (const juce::File& dir)
-{
-    if (! dir.isDirectory())
-        return;
-
-    auto adgFiles = dir.findChildFiles (juce::File::findFiles, true, "*.adg");
-    adgFiles.sort();
-
-    logPM ("scanDirectory: " + dir.getFullPathName().toStdString() + " found " + std::to_string (adgFiles.size()) + " .adg files");
-
-    for (auto& f : adgFiles)
-    {
-        PresetEntry entry;
-        entry.name = f.getFileNameWithoutExtension();
-        entry.file = f;
-        entry.isCustom = false;
-        presets.push_back (entry);
-    }
 }
 
 int PresetManager::getNumPresets() const
@@ -94,36 +67,17 @@ juce::String PresetManager::getPresetName (int index) const
 bool PresetManager::loadPreset (int index)
 {
     if (index < 0 || index >= (int) presets.size())
-    {
-        logPM ("loadPreset: index " + std::to_string (index) + " out of range (size=" + std::to_string (presets.size()) + ")");
         return false;
-    }
 
     auto& entry = presets[(size_t) index];
-    logPM ("loadPreset: index=" + std::to_string (index) + " name=" + entry.name.toStdString() + " file=" + entry.file.getFullPathName().toStdString());
 
-    if (entry.isCustom)
-    {
-        if (! loadCustomPreset (entry.file))
-            return false;
-    }
-    else
-    {
-        currentKit = adgParser.parseFile (entry.file);
-        logPM ("loadPreset: parsed kit has " + std::to_string (currentKit.mappings.size()) + " mappings");
-    }
+    if (! loadDkitFile (entry.file))
+        return false;
 
     currentIndex = index;
 
     if (onPresetLoaded)
-    {
-        logPM ("loadPreset: calling onPresetLoaded callback");
         onPresetLoaded (currentKit);
-    }
-    else
-    {
-        logPM ("loadPreset: WARNING - onPresetLoaded callback is null!");
-    }
 
     return true;
 }
@@ -152,31 +106,69 @@ bool PresetManager::loadPreviousPreset()
     return loadPreset (prev);
 }
 
-juce::File PresetManager::getCustomPresetsDir() const
+bool PresetManager::loadDkitFile (const juce::File& file)
 {
-    auto appData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
-    return appData.getChildFile ("MPSDrumMachine/Presets");
+    auto preset = parseDkitJson (file);
+    if (preset.name.isEmpty())
+        return false;
+
+    currentKit = preset;
+    return true;
 }
 
-bool PresetManager::saveCustomPreset (const juce::String& name,
-                                       const std::map<int, juce::File>& padMappings)
+DkitPreset PresetManager::parseDkitJson (const juce::File& file)
 {
-    auto dir = getCustomPresetsDir();
-    dir.createDirectory();
+    DkitPreset preset;
+    preset.sourceFile = file;
 
-    auto file = dir.getChildFile (name + ".json");
+    auto jsonText = file.loadFileAsString();
+    auto parsed = juce::JSON::parse (jsonText);
 
+    if (! parsed.isObject())
+        return preset;
+
+    preset.name = parsed.getProperty ("name", "").toString();
+    preset.author = parsed.getProperty ("author", "").toString();
+    preset.description = parsed.getProperty ("description", "").toString();
+    preset.source = parsed.getProperty ("source", "").toString();
+    preset.createdAt = parsed.getProperty ("createdAt", "").toString();
+
+    auto padsArray = parsed.getProperty ("pads", juce::var());
+    if (padsArray.isArray())
+    {
+        for (int i = 0; i < padsArray.size(); ++i)
+        {
+            auto padVar = padsArray[i];
+            DkitPadMapping mapping;
+            mapping.midiNote = (int) padVar.getProperty ("midiNote", -1);
+            mapping.sampleFile = padVar.getProperty ("sampleFile", "").toString();
+            mapping.sampleName = padVar.getProperty ("sampleName", "").toString();
+            if (mapping.midiNote >= 0)
+                preset.pads.push_back (mapping);
+        }
+    }
+
+    return preset;
+}
+
+bool PresetManager::writeDkitJson (const juce::File& file, const DkitPreset& preset)
+{
     juce::DynamicObject::Ptr root = new juce::DynamicObject();
-    root->setProperty ("name", name);
+    root->setProperty ("formatVersion", 1);
+    root->setProperty ("name", preset.name);
+    root->setProperty ("author", preset.author);
+    root->setProperty ("description", preset.description);
+    root->setProperty ("source", preset.source);
+    root->setProperty ("createdAt", preset.createdAt);
 
     juce::Array<juce::var> padsArray;
-    for (auto& [note, sampleFile] : padMappings)
+    for (auto& pad : preset.pads)
     {
-        juce::DynamicObject::Ptr pad = new juce::DynamicObject();
-        pad->setProperty ("midiNote", note);
-        pad->setProperty ("samplePath", sampleFile.getFullPathName());
-        pad->setProperty ("sampleName", sampleFile.getFileNameWithoutExtension());
-        padsArray.add (juce::var (pad.get()));
+        juce::DynamicObject::Ptr padObj = new juce::DynamicObject();
+        padObj->setProperty ("midiNote", pad.midiNote);
+        padObj->setProperty ("sampleFile", pad.sampleFile);
+        padObj->setProperty ("sampleName", pad.sampleName);
+        padsArray.add (juce::var (padObj.get()));
     }
 
     root->setProperty ("pads", padsArray);
@@ -185,32 +177,73 @@ bool PresetManager::saveCustomPreset (const juce::String& name,
     return file.replaceWithText (jsonText);
 }
 
-bool PresetManager::loadCustomPreset (const juce::File& jsonFile)
+bool PresetManager::savePreset (const juce::String& name,
+                                 const std::map<int, juce::File>& padMappings)
 {
-    auto jsonText = jsonFile.loadFileAsString();
-    auto parsed = juce::JSON::parse (jsonText);
+    presetsDir.createDirectory();
 
-    if (! parsed.isObject())
-        return false;
+    DkitPreset preset;
+    preset.name = name;
+    preset.source = "User created";
+    preset.createdAt = juce::Time::getCurrentTime().toISO8601 (true);
 
-    currentKit = AdgDrumKit();
-    currentKit.kitName = parsed.getProperty ("name", "Custom").toString();
-    currentKit.sourceFile = jsonFile;
-
-    auto padsArray = parsed.getProperty ("pads", juce::var());
-    if (padsArray.isArray())
+    for (auto& [note, sampleFile] : padMappings)
     {
-        for (int i = 0; i < padsArray.size(); ++i)
+        DkitPadMapping pad;
+        pad.midiNote = note;
+        pad.sampleFile = makeRelativeSamplePath (sampleFile);
+        pad.sampleName = sampleFile.getFileNameWithoutExtension();
+        preset.pads.push_back (pad);
+    }
+
+    auto file = presetsDir.getChildFile (name + ".dkit");
+    return writeDkitJson (file, preset);
+}
+
+juce::File PresetManager::resolveSamplePath (const juce::String& relativePath) const
+{
+    if (relativePath.isEmpty())
+        return {};
+
+    return samplesDir.getChildFile (relativePath);
+}
+
+juce::String PresetManager::makeRelativeSamplePath (const juce::File& sampleFile)
+{
+    if (! sampleFile.existsAsFile())
+        return {};
+
+    // If the file is already inside samplesDir, compute relative path
+    auto sampleFullPath = sampleFile.getFullPathName();
+    auto samplesFullPath = samplesDir.getFullPathName();
+
+    if (sampleFullPath.startsWith (samplesFullPath))
+    {
+        auto relative = sampleFullPath.substring (samplesFullPath.length());
+        if (relative.startsWith (juce::File::getSeparatorString()))
+            relative = relative.substring (1);
+        return relative;
+    }
+
+    // File is outside samplesDir -- copy it in
+    samplesDir.createDirectory();
+    auto destFile = samplesDir.getChildFile (sampleFile.getFileName());
+
+    // Avoid overwriting if a different file with the same name exists
+    if (destFile.existsAsFile() && destFile.getFullPathName() != sampleFile.getFullPathName())
+    {
+        auto baseName = sampleFile.getFileNameWithoutExtension();
+        auto ext = sampleFile.getFileExtension();
+        int counter = 2;
+        while (destFile.existsAsFile())
         {
-            auto padVar = padsArray[i];
-            AdgSampleMapping mapping;
-            mapping.midiNote = (int) padVar.getProperty ("midiNote", -1);
-            mapping.samplePath = padVar.getProperty ("samplePath", "").toString();
-            mapping.sampleName = padVar.getProperty ("sampleName", "").toString();
-            if (mapping.midiNote >= 0)
-                currentKit.mappings.push_back (mapping);
+            destFile = samplesDir.getChildFile (baseName + "_" + juce::String (counter) + ext);
+            ++counter;
         }
     }
 
-    return true;
+    if (! destFile.existsAsFile())
+        sampleFile.copyFileTo (destFile);
+
+    return destFile.getFileName();
 }

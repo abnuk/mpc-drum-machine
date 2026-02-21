@@ -19,9 +19,23 @@ public:
 private:
     MPSDrumMachineProcessor& processor;
     juce::Label titleLabel;
-    juce::Label libPathLabel;
-    juce::TextEditor libPathEditor;
-    juce::TextButton browseButton { "Browse..." };
+
+    juce::Label samplesPathLabel;
+    juce::TextEditor samplesPathEditor;
+    juce::TextButton samplesBrowseButton { "Browse..." };
+
+    juce::Label presetsPathLabel;
+    juce::TextEditor presetsPathEditor;
+    juce::TextButton presetsBrowseButton { "Browse..." };
+
+    juce::TextButton importAbletonButton { "Import from Ableton Live" };
+    juce::TextButton scanButton { "Scan Library" };
+
+    double importProgress = 0.0;
+    juce::ProgressBar importProgressBar { importProgress };
+    juce::Label importStatusLabel;
+    bool importRunning = false;
+
     juce::Label navChannelLabel;
     juce::ComboBox navChannelBox;
     juce::Label prevCCLabel;
@@ -30,11 +44,12 @@ private:
     juce::Label nextCCLabel;
     juce::ComboBox nextCCBox;
     juce::TextButton nextLearnButton { "Learn" };
-    juce::TextButton scanButton { "Scan Library" };
-    juce::TextButton closeButton { "Close" };
+
     juce::TextButton savePresetButton { "Save Preset..." };
+    juce::TextButton closeButton { "Close" };
 
     void updateLearnButtonStates();
+    void doAbletonImport();
 };
 
 class MPSDrumMachineEditor : public juce::AudioProcessorEditor,
@@ -54,22 +69,18 @@ private:
     MPSDrumMachineProcessor& processorRef;
     DarkLookAndFeel darkLnf;
 
-    // Top bar
     juce::TextButton prevButton { "<" };
     juce::TextButton nextButton { ">" };
     juce::Label presetLabel;
     juce::TextButton presetsViewButton { "Presets" };
     juce::TextButton settingsButton { "Settings" };
 
-    // Pad grid
     juce::OwnedArray<PadComponent> padComponents;
 
-    // Preset browser
     std::unique_ptr<PresetListComponent> presetListComponent;
     bool showingPresetList = false;
     void togglePresetView();
 
-    // Settings overlay
     std::unique_ptr<SettingsOverlay> settingsOverlay;
 
     void showSettings();

@@ -1,17 +1,37 @@
 #pragma once
 #include <juce_core/juce_core.h>
-#include "AdgParser.h"
 #include <vector>
 #include <functional>
+
+struct DkitPadMapping
+{
+    int midiNote = -1;
+    juce::String sampleFile;   // relative to samplesDir
+    juce::String sampleName;
+};
+
+struct DkitPreset
+{
+    juce::String name;
+    juce::String author;
+    juce::String description;
+    juce::String source;
+    juce::String createdAt;
+    juce::File sourceFile;
+    std::vector<DkitPadMapping> pads;
+};
 
 class PresetManager
 {
 public:
-    PresetManager (AdgParser& parser);
+    PresetManager();
+
+    void setSamplesDir (const juce::File& dir);
+    void setPresetsDir (const juce::File& dir);
+    juce::File getSamplesDir() const { return samplesDir; }
+    juce::File getPresetsDir() const { return presetsDir; }
 
     void scanForPresets();
-    void addScanDirectory (const juce::File& dir);
-    void clearScanDirectories();
 
     int getNumPresets() const;
     juce::String getPresetName (int index) const;
@@ -21,31 +41,34 @@ public:
     bool loadNextPreset();
     bool loadPreviousPreset();
 
-    const AdgDrumKit& getCurrentKit() const { return currentKit; }
+    const DkitPreset& getCurrentKit() const { return currentKit; }
 
-    // Save/load custom JSON presets
-    bool saveCustomPreset (const juce::String& name,
-                           const std::map<int, juce::File>& padMappings);
-    bool loadCustomPreset (const juce::File& jsonFile);
+    bool savePreset (const juce::String& name,
+                     const std::map<int, juce::File>& padMappings);
 
-    // Callback for when a preset is loaded
-    std::function<void(const AdgDrumKit&)> onPresetLoaded;
+    std::function<void (const DkitPreset&)> onPresetLoaded;
 
-    juce::File getCustomPresetsDir() const;
+    static juce::File getDefaultSamplesDir();
+    static juce::File getDefaultPresetsDir();
+
+    juce::File resolveSamplePath (const juce::String& relativePath) const;
+    juce::String makeRelativeSamplePath (const juce::File& sampleFile);
+
+    static DkitPreset parseDkitJson (const juce::File& file);
+    static bool writeDkitJson (const juce::File& file, const DkitPreset& preset);
 
 private:
     struct PresetEntry
     {
         juce::String name;
         juce::File file;
-        bool isCustom = false;
     };
 
-    AdgParser& adgParser;
+    juce::File samplesDir;
+    juce::File presetsDir;
     std::vector<PresetEntry> presets;
-    std::vector<juce::File> scanDirectories;
     int currentIndex = -1;
-    AdgDrumKit currentKit;
+    DkitPreset currentKit;
 
-    void scanDirectory (const juce::File& dir);
+    bool loadDkitFile (const juce::File& file);
 };

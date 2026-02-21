@@ -12,9 +12,10 @@ void PadComponent::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced (2.0f);
 
-    // Background
     juce::Colour bgColour = DarkLookAndFeel::padDefault;
-    if (sampleEngine.hasSample (padInfo.midiNote))
+    if (sampleMissing)
+        bgColour = DarkLookAndFeel::padMissing;
+    else if (sampleEngine.hasSample (padInfo.midiNote))
         bgColour = DarkLookAndFeel::padLoaded;
     if (isDragOver)
         bgColour = DarkLookAndFeel::padHover;
@@ -24,20 +25,32 @@ void PadComponent::paint (juce::Graphics& g)
     g.setColour (bgColour);
     g.fillRoundedRectangle (bounds, 6.0f);
 
-    // Flash overlay
     if (flashAlpha > 0.01f)
     {
         g.setColour (DarkLookAndFeel::triggerFlash.withAlpha (flashAlpha * flashVelocity));
         g.fillRoundedRectangle (bounds, 6.0f);
     }
 
-    // Border
     auto borderColour = isDragOver ? DarkLookAndFeel::accent
-                                   : DarkLookAndFeel::bgLight.brighter (0.3f);
+                                   : (sampleMissing ? juce::Colour (0xffaa4444)
+                                                    : DarkLookAndFeel::bgLight.brighter (0.3f));
     g.setColour (borderColour);
     g.drawRoundedRectangle (bounds, 6.0f, isDragOver ? 2.0f : 1.5f);
 
-    // Pad name
+    // Exclamation badge for missing samples
+    if (sampleMissing)
+    {
+        float badgeSize = 18.0f;
+        float badgeX = bounds.getRight() - badgeSize - 4.0f;
+        float badgeY = bounds.getY() + 4.0f;
+        g.setColour (juce::Colour (0xffcc3333));
+        g.fillEllipse (badgeX, badgeY, badgeSize, badgeSize);
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
+        g.drawText ("!", juce::Rectangle<float> (badgeX, badgeY, badgeSize, badgeSize).toNearestInt(),
+                    juce::Justification::centred);
+    }
+
     g.setColour (isDragging ? DarkLookAndFeel::textBright.withAlpha (0.4f)
                             : DarkLookAndFeel::textBright);
     g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
@@ -45,24 +58,26 @@ void PadComponent::paint (juce::Graphics& g)
     g.drawText (juce::String (padInfo.padName), textArea.removeFromTop (18.0f),
                 juce::Justification::centredLeft);
 
-    // Trigger name
     g.setColour (isDragging ? DarkLookAndFeel::accent.withAlpha (0.4f)
                             : DarkLookAndFeel::accent);
     g.setFont (juce::FontOptions (11.0f));
     g.drawText (juce::String (padInfo.triggerName), textArea.removeFromTop (15.0f),
                 juce::Justification::centredLeft);
 
-    // MIDI note
     g.setColour (DarkLookAndFeel::textDim);
     g.setFont (juce::FontOptions (10.0f));
     g.drawText ("MIDI " + juce::String (padInfo.midiNote),
                 textArea.removeFromTop (13.0f), juce::Justification::centredLeft);
 
-    // Sample name
     if (sampleName.isNotEmpty())
     {
-        g.setColour (isDragging ? DarkLookAndFeel::textBright.withAlpha (0.3f)
-                                : DarkLookAndFeel::textBright.withAlpha (0.8f));
+        if (sampleMissing)
+            g.setColour (juce::Colour (0xffcc6666));
+        else if (isDragging)
+            g.setColour (DarkLookAndFeel::textBright.withAlpha (0.3f));
+        else
+            g.setColour (DarkLookAndFeel::textBright.withAlpha (0.8f));
+
         g.setFont (juce::FontOptions (10.0f));
         g.drawFittedText (sampleName, textArea.toNearestInt(),
                           juce::Justification::centredLeft, 2);
@@ -110,7 +125,6 @@ void PadComponent::mouseDrag (const juce::MouseEvent& event)
     isDragging = true;
     repaint();
 
-    // Create a drag image from the pad
     auto dragImage = createComponentSnapshot (getLocalBounds())
                          .rescaled (getWidth() / 2, getHeight() / 2);
     dragImage.multiplyAllAlphas (0.6f);
@@ -135,15 +149,12 @@ void PadComponent::mouseUp (const juce::MouseEvent& event)
     if (event.mods.isPopupMenu())
         return;
 
-    // Preview: trigger sample at medium velocity
     if (sampleEngine.hasSample (padInfo.midiNote))
     {
         sampleEngine.noteOn (padInfo.midiNote, 0.7f);
         triggerFlash (0.7f);
     }
 }
-
-// --- FileDragAndDropTarget (external files) ---
 
 bool PadComponent::isInterestedInFileDrag (const juce::StringArray& files)
 {
@@ -190,8 +201,6 @@ void PadComponent::filesDropped (const juce::StringArray& files, int, int)
     repaint();
 }
 
-// --- DragAndDropTarget (internal pad-to-pad) ---
-
 bool PadComponent::isInterestedInDragSource (const SourceDetails& details)
 {
     auto desc = details.description.toString();
@@ -224,7 +233,6 @@ void PadComponent::itemDropped (const SourceDetails& details)
     if (sourceNote != padInfo.midiNote && onPadSwapped)
         onPadSwapped (sourceNote, padInfo.midiNote);
 
-    // Reset the source pad's dragging state
     if (auto* sourcePad = dynamic_cast<PadComponent*> (details.sourceComponent.get()))
     {
         sourcePad->isDragging = false;
@@ -233,8 +241,6 @@ void PadComponent::itemDropped (const SourceDetails& details)
 
     repaint();
 }
-
-// --- Timer for flash ---
 
 void PadComponent::timerCallback()
 {
@@ -257,5 +263,6 @@ void PadComponent::triggerFlash (float velocity)
 void PadComponent::updateSampleDisplay()
 {
     sampleName = sampleEngine.getSampleName (padInfo.midiNote);
+    sampleMissing = sampleEngine.isSampleMissing (padInfo.midiNote);
     repaint();
 }

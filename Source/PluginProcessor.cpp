@@ -1,60 +1,15 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include <fstream>
 
 MPSDrumMachineProcessor::MPSDrumMachineProcessor()
     : AudioProcessor (BusesProperties()
-                      .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      presetManager (adgParser)
+                      .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
-    {
-        auto logFile = juce::File::getSpecialLocation (juce::File::userDesktopDirectory)
-                           .getChildFile ("mps_drum_debug.log");
-        logFile.replaceWithText ("=== MPS Drum Machine started ===\n");
-    }
-
-    // Set up default Ableton library scan paths
-    auto abletonLib = AdgParser::autoDetectAbletonLibrary();
-    if (abletonLib.isDirectory())
-    {
-        adgParser.setAbletonLibraryPath (abletonLib);
-
-        // Scan all known Ableton drum rack preset locations
-        juce::StringArray drumRackPaths = {
-            "Racks/Drum Racks",
-            "Presets/Instruments/Drum Rack",
-            "Defaults/Slicing"
-        };
-
-        for (auto& subPath : drumRackPaths)
-        {
-            auto dir = abletonLib.getChildFile (subPath);
-            if (dir.isDirectory())
-                presetManager.addScanDirectory (dir);
-        }
-    }
-
-    // Add user library (multiple possible structures)
-    auto userMusicDir = juce::File::getSpecialLocation (juce::File::userMusicDirectory);
-    juce::StringArray userLibPaths = {
-        "Ableton/User Library/Presets/Instruments/Drum Rack",
-        "Ableton/User Library/Racks/Drum Racks"
-    };
-
-    for (auto& subPath : userLibPaths)
-    {
-        auto dir = userMusicDir.getChildFile (subPath);
-        if (dir.isDirectory())
-            presetManager.addScanDirectory (dir);
-    }
-
-    // Set up preset loaded callback
-    presetManager.onPresetLoaded = [this] (const AdgDrumKit& kit)
+    presetManager.onPresetLoaded = [this] (const DkitPreset& kit)
     {
         loadKitSamples (kit);
     };
 
-    // Scan for presets on a background thread
     juce::Thread::launch ([this] { presetManager.scanForPresets(); });
 }
 
@@ -89,15 +44,12 @@ void MPSDrumMachineProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         auto msg = metadata.getMessage();
 
-        // Check for MIDI learn (consumes the message if learning)
         if (midiMapper.processForLearn (msg))
             continue;
 
-        // Check for navigation MIDI
         auto navAction = midiMapper.processForNavigation (msg);
         if (navAction == MidiMapper::NavAction::Next)
         {
-            // Must happen on message thread for thread safety with preset loading
             juce::MessageManager::callAsync ([this] { presetManager.loadNextPreset(); });
             continue;
         }
@@ -107,7 +59,6 @@ void MPSDrumMachineProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             continue;
         }
 
-        // Check for drum triggers
         if (midiMapper.isDrumTrigger (msg))
         {
             int note = msg.getNoteNumber();
@@ -131,18 +82,15 @@ void MPSDrumMachineProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = std::make_unique<juce::XmlElement> ("MPSDrumMachineState");
 
-    // Save Ableton library path
-    state->setAttribute ("abletonLibPath", adgParser.getAbletonLibraryPath().getFullPathName());
+    state->setAttribute ("samplesPath", presetManager.getSamplesDir().getFullPathName());
+    state->setAttribute ("presetsPath", presetManager.getPresetsDir().getFullPathName());
 
-    // Save navigation MIDI settings
     state->setAttribute ("navChannel", midiMapper.getNavChannel());
     state->setAttribute ("prevCC", midiMapper.getPrevCCNumber());
     state->setAttribute ("nextCC", midiMapper.getNextCCNumber());
 
-    // Save current preset index
     state->setAttribute ("presetIndex", presetManager.getCurrentPresetIndex());
 
-    // Save custom pad mappings (for drag & drop overrides)
     auto* padsEl = state->createNewChildElement ("PadMappings");
     for (auto& pad : MidiMapper::getAllPads())
     {
@@ -164,18 +112,19 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
     if (state == nullptr || ! state->hasTagName ("MPSDrumMachineState"))
         return;
 
-    // Restore Ableton library path
-    auto libPath = state->getStringAttribute ("abletonLibPath");
-    if (libPath.isNotEmpty())
-        adgParser.setAbletonLibraryPath (juce::File (libPath));
+    auto samplesPath = state->getStringAttribute ("samplesPath");
+    if (samplesPath.isNotEmpty())
+        presetManager.setSamplesDir (juce::File (samplesPath));
 
-    // Restore navigation settings
+    auto presetsPath = state->getStringAttribute ("presetsPath");
+    if (presetsPath.isNotEmpty())
+        presetManager.setPresetsDir (juce::File (presetsPath));
+
     midiMapper.setNavChannel (state->getIntAttribute ("navChannel", 0));
     midiMapper.setPrevCCNumber (state->getIntAttribute ("prevCC",
         state->getIntAttribute ("navCC", 1)));
     midiMapper.setNextCCNumber (state->getIntAttribute ("nextCC", 2));
 
-    // Restore pad mappings
     auto* padsEl = state->getChildByName ("PadMappings");
     if (padsEl != nullptr)
     {
@@ -192,7 +141,6 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
         }
     }
 
-    // Restore preset
     int presetIdx = state->getIntAttribute ("presetIndex", -1);
     if (presetIdx >= 0)
     {
@@ -204,26 +152,10 @@ void MPSDrumMachineProcessor::setStateInformation (const void* data, int sizeInB
     }
 }
 
-void MPSDrumMachineProcessor::loadKitSamples (const AdgDrumKit& kit)
+void MPSDrumMachineProcessor::loadKitSamples (const DkitPreset& kit)
 {
-    {
-        auto lf = juce::File::getSpecialLocation (juce::File::userDesktopDirectory)
-                      .getChildFile ("mps_drum_debug.log");
-        juce::String logStr;
-        logStr << "loadKitSamples: kit=" << kit.kitName
-               << " mappings=" << (int) kit.mappings.size() << "\n";
-        for (auto& m : kit.mappings)
-        {
-            juce::File sf (m.samplePath);
-            logStr << "  note=" << m.midiNote << " path=" << m.samplePath
-                   << " exists=" << (sf.existsAsFile() ? "YES" : "NO") << "\n";
-        }
-        lf.appendText (logStr);
-    }
-
     sampleEngine.clearAllSamples();
 
-    // Check if a custom mapping overlay exists for this preset
     auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
     auto customMapping = padMappingManager.loadMapping (presetId);
 
@@ -237,13 +169,26 @@ void MPSDrumMachineProcessor::loadKitSamples (const AdgDrumKit& kit)
     }
     else
     {
-        for (auto& mapping : kit.mappings)
+        for (auto& pad : kit.pads)
         {
-            juce::File sampleFile (mapping.samplePath);
+            auto sampleFile = presetManager.resolveSamplePath (pad.sampleFile);
             if (sampleFile.existsAsFile())
-                sampleEngine.loadSample (mapping.midiNote, sampleFile);
+                sampleEngine.loadSample (pad.midiNote, sampleFile);
+            else if (pad.sampleFile.isNotEmpty())
+                sampleEngine.markSampleMissing (pad.midiNote, pad.sampleName);
         }
     }
+}
+
+void MPSDrumMachineProcessor::setSamplesPath (const juce::File& path)
+{
+    presetManager.setSamplesDir (path);
+}
+
+void MPSDrumMachineProcessor::setPresetsPath (const juce::File& path)
+{
+    presetManager.setPresetsDir (path);
+    presetManager.scanForPresets();
 }
 
 void MPSDrumMachineProcessor::swapPadsAndSave (int noteA, int noteB)
@@ -280,13 +225,14 @@ void MPSDrumMachineProcessor::resetCurrentMappingToDefault()
     auto presetId = PadMappingManager::makePresetId (kit.sourceFile);
     padMappingManager.clearMapping (presetId);
 
-    // Reload the original kit samples
     sampleEngine.clearAllSamples();
-    for (auto& mapping : kit.mappings)
+    for (auto& pad : kit.pads)
     {
-        juce::File sampleFile (mapping.samplePath);
+        auto sampleFile = presetManager.resolveSamplePath (pad.sampleFile);
         if (sampleFile.existsAsFile())
-            sampleEngine.loadSample (mapping.midiNote, sampleFile);
+            sampleEngine.loadSample (pad.midiNote, sampleFile);
+        else if (pad.sampleFile.isNotEmpty())
+            sampleEngine.markSampleMissing (pad.midiNote, pad.sampleName);
     }
 }
 

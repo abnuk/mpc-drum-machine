@@ -19,6 +19,7 @@ public:
     static inline const juce::Colour padActive     { 0xff5050a0 };
     static inline const juce::Colour padLoaded     { 0xff2a5040 };
     static inline const juce::Colour triggerFlash  { 0xffff8844 };
+    static inline const juce::Colour padMissing    { 0xff6b2a2a };
 
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&,
                                bool isMouseOver, bool isButtonDown) override;

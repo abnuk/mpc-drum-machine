@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "AbletonImporter.h"
 
 //==============================================================================
 // SettingsOverlay
@@ -11,20 +12,19 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
     titleLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textBright);
     addAndMakeVisible (titleLabel);
 
-    libPathLabel.setText ("Ableton Core Library:", juce::dontSendNotification);
-    libPathLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
-    addAndMakeVisible (libPathLabel);
+    // Samples path
+    samplesPathLabel.setText ("Samples Directory:", juce::dontSendNotification);
+    samplesPathLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
+    addAndMakeVisible (samplesPathLabel);
 
-    libPathEditor.setText (processor.getAdgParser().getAbletonLibraryPath().getFullPathName());
-    addAndMakeVisible (libPathEditor);
+    samplesPathEditor.setText (processor.getSamplesPath().getFullPathName());
+    addAndMakeVisible (samplesPathEditor);
 
-    browseButton.onClick = [this]
+    samplesBrowseButton.onClick = [this]
     {
         auto chooser = std::make_shared<juce::FileChooser> (
-            "Select Ableton Core Library folder",
-            processor.getAdgParser().getAbletonLibraryPath(),
-            "",
-            true);
+            "Select Samples Directory",
+            processor.getSamplesPath(), "", true);
 
         chooser->launchAsync (juce::FileBrowserComponent::openMode
                               | juce::FileBrowserComponent::canSelectDirectories,
@@ -33,29 +33,77 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
             auto result = fc.getResult();
             if (result.isDirectory())
             {
-                processor.getAdgParser().setAbletonLibraryPath (result);
-                libPathEditor.setText (result.getFullPathName());
-
-                processor.getPresetManager().clearScanDirectories();
-
-                juce::StringArray drumRackPaths = {
-                    "Racks/Drum Racks",
-                    "Presets/Instruments/Drum Rack",
-                    "Defaults/Slicing"
-                };
-                for (auto& subPath : drumRackPaths)
-                {
-                    auto dir = result.getChildFile (subPath);
-                    if (dir.isDirectory())
-                        processor.getPresetManager().addScanDirectory (dir);
-                }
-
-                processor.getPresetManager().scanForPresets();
+                processor.setSamplesPath (result);
+                samplesPathEditor.setText (result.getFullPathName());
             }
         });
     };
-    addAndMakeVisible (browseButton);
+    addAndMakeVisible (samplesBrowseButton);
 
+    // Presets path
+    presetsPathLabel.setText ("Presets Directory:", juce::dontSendNotification);
+    presetsPathLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
+    addAndMakeVisible (presetsPathLabel);
+
+    presetsPathEditor.setText (processor.getPresetsPath().getFullPathName());
+    addAndMakeVisible (presetsPathEditor);
+
+    presetsBrowseButton.onClick = [this]
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Select Presets Directory",
+            processor.getPresetsPath(), "", true);
+
+        chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectDirectories,
+                              [this, chooser] (const juce::FileChooser& fc)
+        {
+            auto result = fc.getResult();
+            if (result.isDirectory())
+            {
+                processor.setPresetsPath (result);
+                presetsPathEditor.setText (result.getFullPathName());
+            }
+        });
+    };
+    addAndMakeVisible (presetsBrowseButton);
+
+    // Import from Ableton
+    importAbletonButton.onClick = [this] { doAbletonImport(); };
+    addAndMakeVisible (importAbletonButton);
+
+    importProgressBar.setVisible (false);
+    addAndMakeVisible (importProgressBar);
+
+    importStatusLabel.setFont (juce::FontOptions (11.0f));
+    importStatusLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
+    importStatusLabel.setVisible (false);
+    addAndMakeVisible (importStatusLabel);
+
+    // Scan Library
+    scanButton.onClick = [this]
+    {
+        scanButton.setEnabled (false);
+        scanButton.setButtonText ("Scanning...");
+
+        processor.getPresetManager().scanForPresets();
+
+        auto numPresets = processor.getPresetManager().getNumPresets();
+        scanButton.setButtonText ("Found " + juce::String (numPresets) + " presets");
+
+        auto* btn = &scanButton;
+        juce::Timer::callAfterDelay (2000, [safeThis = juce::Component::SafePointer<SettingsOverlay> (this), btn]
+        {
+            if (safeThis != nullptr)
+            {
+                btn->setButtonText ("Scan Library");
+                btn->setEnabled (true);
+            }
+        });
+    };
+    addAndMakeVisible (scanButton);
+
+    // MIDI Navigation
     navChannelLabel.setText ("Nav MIDI Channel:", juce::dontSendNotification);
     navChannelLabel.setColour (juce::Label::textColourId, DarkLookAndFeel::textDim);
     addAndMakeVisible (navChannelLabel);
@@ -133,31 +181,7 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
         safeThis->updateLearnButtonStates();
     };
 
-    scanButton.onClick = [this]
-    {
-        scanButton.setEnabled (false);
-        scanButton.setButtonText ("Scanning...");
-
-        processor.getPresetManager().scanForPresets();
-
-        auto numPresets = processor.getPresetManager().getNumPresets();
-        scanButton.setButtonText ("Found " + juce::String (numPresets) + " presets");
-
-        auto* btn = &scanButton;
-        juce::Timer::callAfterDelay (2000, [safeThis = juce::Component::SafePointer<SettingsOverlay> (this), btn]
-        {
-            if (safeThis != nullptr)
-            {
-                btn->setButtonText ("Scan Library");
-                btn->setEnabled (true);
-            }
-        });
-    };
-    addAndMakeVisible (scanButton);
-
-    closeButton.onClick = [this] { if (onClose) onClose(); };
-    addAndMakeVisible (closeButton);
-
+    // Save Preset
     savePresetButton.onClick = [this]
     {
         auto* alertWin = new juce::AlertWindow ("Save Preset",
@@ -180,13 +204,16 @@ SettingsOverlay::SettingsOverlay (MPSDrumMachineProcessor& proc) : processor (pr
                         if (file.existsAsFile())
                             mappings[pad.midiNote] = file;
                     }
-                    processor.getPresetManager().saveCustomPreset (name, mappings);
+                    processor.getPresetManager().savePreset (name, mappings);
                     processor.getPresetManager().scanForPresets();
                 }
                 delete alertWin;
             }), true);
     };
     addAndMakeVisible (savePresetButton);
+
+    closeButton.onClick = [this] { if (onClose) onClose(); };
+    addAndMakeVisible (closeButton);
 }
 
 SettingsOverlay::~SettingsOverlay()
@@ -218,6 +245,123 @@ void SettingsOverlay::updateLearnButtonStates()
     }
 }
 
+void SettingsOverlay::doAbletonImport()
+{
+    auto startImport = [this] (const juce::Array<juce::File>& dirs)
+    {
+        importRunning = true;
+        importProgress = 0.0;
+        importAbletonButton.setEnabled (false);
+        importAbletonButton.setButtonText ("Importing...");
+        importProgressBar.setVisible (true);
+        importStatusLabel.setVisible (true);
+        importStatusLabel.setText ("Preparing...", juce::dontSendNotification);
+
+        auto safeThis = juce::Component::SafePointer<SettingsOverlay> (this);
+
+        juce::Thread::launch ([this, dirs, safeThis]
+        {
+            auto importResult = AbletonImporter::importFromDirectories (
+                dirs,
+                processor.getSamplesPath(),
+                processor.getPresetsPath(),
+                processor.getAdgParser(),
+                [safeThis] (float progress, const juce::String& status)
+                {
+                    juce::MessageManager::callAsync ([safeThis, progress, status]
+                    {
+                        if (safeThis != nullptr)
+                        {
+                            safeThis->importProgress = (double) progress;
+                            safeThis->importStatusLabel.setText (status, juce::dontSendNotification);
+                        }
+                    });
+                });
+
+            juce::MessageManager::callAsync ([this, importResult, safeThis]
+            {
+                if (safeThis == nullptr)
+                    return;
+
+                importRunning = false;
+                importProgress = 1.0;
+                processor.getPresetManager().scanForPresets();
+
+                auto msg = "Imported " + juce::String (importResult.presetsImported) + " presets, "
+                         + juce::String (importResult.samplesCopied) + " samples copied";
+                if (importResult.skippedNoSamples > 0)
+                    msg += ", " + juce::String (importResult.skippedNoSamples) + " skipped (no audio samples)";
+                if (importResult.skippedExisting > 0)
+                    msg += ", " + juce::String (importResult.skippedExisting) + " already existed";
+
+                importStatusLabel.setText (msg, juce::dontSendNotification);
+                importAbletonButton.setButtonText ("Import from Ableton Live");
+                importAbletonButton.setEnabled (true);
+
+                if (importResult.skippedNoSamples > 0 || importResult.errors > 0)
+                {
+                    juce::String details;
+                    if (importResult.skippedNoSamples > 0)
+                    {
+                        details += juce::String (importResult.skippedNoSamples)
+                                 + " kits skipped (synth-based, no audio samples):\n";
+                        for (auto& name : importResult.skippedNames)
+                            details += "  - " + name + "\n";
+                    }
+                    if (importResult.errors > 0)
+                    {
+                        details += "\n" + juce::String (importResult.errors) + " errors:\n";
+                        for (auto& err : importResult.errorMessages)
+                            details += "  - " + err + "\n";
+                    }
+                    details += "\nFull log: ~/Library/Application Support/MPSDrumMachine/import_log.txt";
+
+                    juce::AlertWindow::showMessageBoxAsync (
+                        juce::MessageBoxIconType::InfoIcon,
+                        "Import Summary",
+                        "Imported " + juce::String (importResult.presetsImported) + " presets.\n\n" + details);
+                }
+
+                juce::Timer::callAfterDelay (10000, [safeThis]
+                {
+                    if (safeThis != nullptr && ! safeThis->importRunning)
+                    {
+                        safeThis->importProgressBar.setVisible (false);
+                        safeThis->importStatusLabel.setVisible (false);
+                    }
+                });
+            });
+        });
+    };
+
+    auto abletonDirs = AbletonImporter::findAbletonPresetDirs();
+
+    if (abletonDirs.isEmpty())
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Select folder containing Ableton .adg preset files",
+            juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+            "", true);
+
+        chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectDirectories,
+                              [startImport, chooser] (const juce::FileChooser& fc)
+        {
+            auto result = fc.getResult();
+            if (result.isDirectory())
+            {
+                juce::Array<juce::File> dirs;
+                dirs.add (result);
+                startImport (dirs);
+            }
+        });
+    }
+    else
+    {
+        startImport (abletonDirs);
+    }
+}
+
 void SettingsOverlay::paint (juce::Graphics& g)
 {
     g.fillAll (DarkLookAndFeel::bgDark.withAlpha (0.95f));
@@ -237,17 +381,40 @@ void SettingsOverlay::resized()
     titleLabel.setBounds (area.removeFromTop (35));
     area.removeFromTop (15);
 
-    libPathLabel.setBounds (area.removeFromTop (22));
-    auto pathRow = area.removeFromTop (30);
-    browseButton.setBounds (pathRow.removeFromRight (90));
-    pathRow.removeFromRight (5);
-    libPathEditor.setBounds (pathRow);
+    // Samples path
+    samplesPathLabel.setBounds (area.removeFromTop (22));
+    auto samplesRow = area.removeFromTop (30);
+    samplesBrowseButton.setBounds (samplesRow.removeFromRight (90));
+    samplesRow.removeFromRight (5);
+    samplesPathEditor.setBounds (samplesRow);
 
     area.removeFromTop (8);
-    scanButton.setBounds (area.removeFromTop (30).withWidth (140));
 
-    area.removeFromTop (15);
+    // Presets path
+    presetsPathLabel.setBounds (area.removeFromTop (22));
+    auto presetsRow = area.removeFromTop (30);
+    presetsBrowseButton.setBounds (presetsRow.removeFromRight (90));
+    presetsRow.removeFromRight (5);
+    presetsPathEditor.setBounds (presetsRow);
 
+    area.removeFromTop (10);
+
+    // Import + Scan buttons side by side
+    {
+        auto row = area.removeFromTop (32);
+        importAbletonButton.setBounds (row.removeFromLeft (220));
+        row.removeFromLeft (10);
+        scanButton.setBounds (row.removeFromLeft (140));
+    }
+
+    area.removeFromTop (6);
+    importProgressBar.setBounds (area.removeFromTop (18).withWidth (370));
+    area.removeFromTop (2);
+    importStatusLabel.setBounds (area.removeFromTop (16).withWidth (500));
+
+    area.removeFromTop (10);
+
+    // MIDI settings
     navChannelLabel.setBounds (area.removeFromTop (22));
     navChannelBox.setBounds (area.removeFromTop (28).withWidth (200));
 
@@ -287,7 +454,6 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
     setLookAndFeel (&darkLnf);
     setOpaque (true);
 
-    // Top bar
     prevButton.onClick = [this]
     {
         processorRef.getPresetManager().loadPreviousPreset();
@@ -316,7 +482,6 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
     settingsButton.onClick = [this] { showSettings(); };
     addAndMakeVisible (settingsButton);
 
-    // Preset browser
     presetListComponent = std::make_unique<PresetListComponent> (processorRef.getPresetManager());
     presetListComponent->setVisible (false);
     presetListComponent->onPresetSelected = [this] (int index)
@@ -327,7 +492,6 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
     };
     addAndMakeVisible (presetListComponent.get());
 
-    // Create pad components
     for (auto& padInfo : MidiMapper::getAllPads())
     {
         auto* pad = new PadComponent (padInfo, processorRef.getSampleEngine());
@@ -350,7 +514,6 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         padComponents.add (pad);
     }
 
-    // MIDI trigger callback for flash animation
     processorRef.onMidiTrigger = [this] (int midiNote, float velocity)
     {
         juce::MessageManager::callAsync ([this, midiNote, velocity]
@@ -366,8 +529,7 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         });
     };
 
-    // Preset load callback to refresh UI
-    processorRef.getPresetManager().onPresetLoaded = [this] (const AdgDrumKit& kit)
+    processorRef.getPresetManager().onPresetLoaded = [this] (const DkitPreset& kit)
     {
         processorRef.loadKitSamples (kit);
         juce::MessageManager::callAsync ([this]
@@ -379,7 +541,6 @@ MPSDrumMachineEditor::MPSDrumMachineEditor (MPSDrumMachineProcessor& p)
         });
     };
 
-    // Set size LAST so resized() runs after all components exist
     setSize (820, 660);
     setResizable (true, true);
     setResizeLimits (600, 500, 1600, 1200);
@@ -395,11 +556,9 @@ void MPSDrumMachineEditor::paint (juce::Graphics& g)
 {
     g.fillAll (DarkLookAndFeel::bgDark);
 
-    // Top bar background
     g.setColour (DarkLookAndFeel::bgMedium);
     g.fillRect (0, 0, getWidth(), 50);
 
-    // Separator line
     g.setColour (DarkLookAndFeel::accent.withAlpha (0.5f));
     g.fillRect (0, 49, getWidth(), 2);
 }
@@ -408,7 +567,6 @@ void MPSDrumMachineEditor::resized()
 {
     auto area = getLocalBounds();
 
-    // Top bar
     auto topBar = area.removeFromTop (50).reduced (10, 8);
     prevButton.setBounds (topBar.removeFromLeft (36));
     topBar.removeFromLeft (5);
@@ -419,7 +577,6 @@ void MPSDrumMachineEditor::resized()
     topBar.removeFromRight (10);
     presetLabel.setBounds (topBar);
 
-    // Content area
     area.reduce (15, 10);
 
     if (showingPresetList)
@@ -429,7 +586,6 @@ void MPSDrumMachineEditor::resized()
     }
     else
     {
-        // Pad grid: 4 columns x 6 rows
         int cols = 4;
         int rows = 6;
         int padWidth = area.getWidth() / cols;

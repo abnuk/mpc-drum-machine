@@ -25,6 +25,9 @@ public:
 
     void clearAllSamples();
 
+    void markSampleMissing (int midiNote, const juce::String& name);
+    bool isSampleMissing (int midiNote) const;
+
 private:
     static constexpr int kMaxVoicesPerPad = 8;
     static constexpr int kTotalSlots = 128;
@@ -42,6 +45,7 @@ private:
         juce::String sampleName;
         juce::File sampleFile;
         bool loaded = false;
+        bool missing = false;
         std::array<Voice, kMaxVoicesPerPad> voices;
     };
 
